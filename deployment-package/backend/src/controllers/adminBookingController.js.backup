@@ -1,0 +1,918 @@
+const { QueryTypes } = require('sequelize');
+const db = require('../config/database');
+const ResponseHandler = require('../utils/responseHandler');
+
+/**
+ * @swagger
+ * /api/admin/bookings:
+ *   get:
+ *     summary: Lấy danh sách booking cho admin
+ *     tags: [Admin Bookings]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: page
+ *         schema:
+ *           type: integer
+ *           default: 1
+ *         description: Trang hiện tại
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *           default: 10
+ *         description: Số lượng item mỗi trang
+ *       - in: query
+ *         name: status
+ *         schema:
+ *           type: string
+ *           enum: [pending, paid, cancelled, completed]
+ *         description: Lọc theo trạng thái
+ *       - in: query
+ *         name: search
+ *         schema:
+ *           type: string
+ *         description: Tìm kiếm theo tên, email, số điện thoại
+ *       - in: query
+ *         name: startDate
+ *         schema:
+ *           type: string
+ *           format: date
+ *         description: Từ ngày
+ *       - in: query
+ *         name: endDate
+ *         schema:
+ *           type: string
+ *           format: date
+ *         description: Đến ngày
+ *     responses:
+ *       200:
+ *         description: Thành công
+ *       401:
+ *         description: Không có quyền truy cập
+ *       500:
+ *         description: Lỗi server
+ */
+const getAllBookings = async (req, res) => {
+  try {
+    const { page = 1, limit = 10, status, search, startDate, endDate } = req.query;
+    const offset = (page - 1) * limit;
+    
+    // Xây dựng điều kiện WHERE
+    let whereConditions = [];
+    let params = {};
+    
+    if (status) {
+      whereConditions.push('b.status = :status');
+      params.status = status;
+    }
+    
+    if (search) {
+      whereConditions.push(`(u.full_name LIKE :search OR u.email LIKE :search OR u.phone_number LIKE :search)`);
+      params.search = `%${search}%`;
+    }
+    
+    if (startDate) {
+      whereConditions.push('b.booked_at >= :startDate');
+      params.startDate = startDate;
+    }
+    
+    if (endDate) {
+      whereConditions.push('b.booked_at <= :endDate');
+      params.endDate = endDate + ' 23:59:59';
+    }
+    
+    const whereClause = whereConditions.length > 0 ? 'WHERE ' + whereConditions.join(' AND ') : '';
+    
+    // Query đếm tổng số
+    const countQuery = `
+      SELECT COUNT(*) as total
+      FROM bookings b
+      INNER JOIN users u ON b.user_id = u.id
+      ${whereClause}
+    `;
+    
+    const countResult = await db.query(countQuery, {
+      replacements: params,
+      type: QueryTypes.SELECT
+    });
+    
+    const total = countResult[0].total;
+    const totalPages = Math.ceil(total / limit);
+    
+    // Query lấy dữ liệu
+    const dataQuery = `
+      SELECT 
+        b.id,
+        b.total_price as totalPrice,
+        b.status,
+        b.booked_at as bookedAt,
+        b.payment_method as paymentMethod,
+        u.id as userId,
+        u.full_name as userName,
+        u.email as userEmail,
+        u.phone_number as userPhone,
+        s.id as scheduleId,
+        s.departure_time as departureTime,
+        s.price as seatPrice,
+        bus.license_plate as licensePlate,
+        bt.name as busType,
+        p1.name as departureProvince,
+        p2.name as arrivalProvince,
+        st1.name as pickupStop,
+        st2.name as dropoffStop
+      FROM bookings b
+      INNER JOIN users u ON b.user_id = u.id
+      INNER JOIN schedules s ON b.schedule_id = s.id
+      INNER JOIN buses bus ON s.bus_id = bus.id
+      INNER JOIN bus_types bt ON bus.bus_type_id = bt.id
+      INNER JOIN routes r ON s.route_id = r.id
+      INNER JOIN provinces p1 ON r.departure_province_id = p1.id
+      INNER JOIN provinces p2 ON r.arrival_province_id = p2.id
+      LEFT JOIN stops st1 ON b.pickup_stop_id = st1.id
+      LEFT JOIN stops st2 ON b.dropoff_stop_id = st2.id
+      ${whereClause}
+      ORDER BY b.booked_at DESC
+      OFFSET :offset ROWS
+      FETCH NEXT :limit ROWS ONLY
+    `;
+    
+    const bookings = await db.query(dataQuery, {
+      replacements: { ...params, offset: parseInt(offset), limit: parseInt(limit) },
+      type: QueryTypes.SELECT
+    });
+    
+    // Format dữ liệu trả về
+    const formattedBookings = bookings.map(booking => ({
+      id: booking.id,
+      totalPrice: parseFloat(booking.totalPrice),
+      status: booking.status,
+      bookedAt: booking.bookedAt,
+      paymentMethod: booking.paymentMethod,
+      user: {
+        id: booking.userId,
+        name: booking.userName,
+        email: booking.userEmail,
+        phone: booking.userPhone
+      },
+      schedule: {
+        id: booking.scheduleId,
+        departureTime: booking.departureTime,
+        seatPrice: parseFloat(booking.seatPrice)
+      },
+      bus: {
+        licensePlate: booking.licensePlate,
+        busType: booking.busType
+      },
+      route: {
+        departureProvince: booking.departureProvince,
+        arrivalProvince: booking.arrivalProvince,
+        pickupStop: booking.pickupStop,
+        dropoffStop: booking.dropoffStop
+      }
+    }));
+    
+    const response = ResponseHandler.success({
+      bookings: formattedBookings,
+      total,
+      page: parseInt(page),
+      limit: parseInt(limit),
+      totalPages
+    });
+    return res.status(response.status).json({
+      success: true,
+      message: response.message,
+      data: response.data
+    });
+  } catch (error) {
+    console.error('Error in getAllBookings:', error);
+    const response = ResponseHandler.serverError('Không thể lấy danh sách vé xe');
+    return res.status(response.status).json({
+      success: false,
+      message: response.message
+    });
+  }
+};
+
+/**
+ * @swagger
+ * /api/admin/bookings/stats:
+ *   get:
+ *     summary: Lấy thống kê booking cho admin
+ *     tags: [Admin Bookings]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Thành công
+ *       401:
+ *         description: Không có quyền truy cập
+ *       500:
+ *         description: Lỗi server
+ */
+const getBookingStats = async (req, res) => {
+  try {
+    const statsQuery = `
+      SELECT 
+        COUNT(*) as total,
+        SUM(CASE WHEN status = 'pending' THEN 1 ELSE 0 END) as pending,
+        SUM(CASE WHEN status = 'paid' THEN 1 ELSE 0 END) as paid,
+        SUM(CASE WHEN status = 'cancelled' THEN 1 ELSE 0 END) as cancelled,
+        SUM(CASE WHEN status = 'completed' THEN 1 ELSE 0 END) as completed,
+        SUM(CASE WHEN status = 'paid' THEN total_price ELSE 0 END) as totalRevenue
+      FROM bookings
+    `;
+    
+    const stats = await db.query(statsQuery, {
+      type: QueryTypes.SELECT
+    });
+    
+    const response = ResponseHandler.success({
+      total: parseInt(stats[0].total),
+      pending: parseInt(stats[0].pending),
+      paid: parseInt(stats[0].paid),
+      cancelled: parseInt(stats[0].cancelled),
+      completed: parseInt(stats[0].completed),
+      totalRevenue: parseFloat(stats[0].totalRevenue) || 0
+    });
+    return res.status(response.status).json({
+      success: true,
+      message: response.message,
+      data: response.data
+    });
+  } catch (error) {
+    console.error('Error in getBookingStats:', error);
+    const response = ResponseHandler.serverError('Không thể lấy thống kê vé xe');
+    return res.status(response.status).json({
+      success: false,
+      message: response.message
+    });
+  }
+};
+
+/**
+ * @swagger
+ * /api/admin/bookings/{bookingId}:
+ *   get:
+ *     summary: Lấy chi tiết booking theo ID
+ *     tags: [Admin Bookings]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: bookingId
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: ID của booking
+ *     responses:
+ *       200:
+ *         description: Thành công
+ *       404:
+ *         description: Không tìm thấy booking
+ *       500:
+ *         description: Lỗi server
+ */
+const getBookingById = async (req, res) => {
+  try {
+    const { bookingId } = req.params;
+    
+    const bookingQuery = `
+      SELECT 
+        b.id,
+        b.total_price as totalPrice,
+        b.status,
+        b.booked_at as bookedAt,
+        b.payment_method as paymentMethod,
+        u.id as userId,
+        u.full_name as userName,
+        u.email as userEmail,
+        u.phone_number as userPhone,
+        s.id as scheduleId,
+        s.departure_time as departureTime,
+        s.price as seatPrice,
+        bus.license_plate as licensePlate,
+        bt.name as busType,
+        p1.name as departureProvince,
+        p2.name as arrivalProvince,
+        st1.name as pickupStop,
+        st2.name as dropoffStop
+      FROM bookings b
+      INNER JOIN users u ON b.user_id = u.id
+      INNER JOIN schedules s ON b.schedule_id = s.id
+      INNER JOIN buses bus ON s.bus_id = bus.id
+      INNER JOIN bus_types bt ON bus.bus_type_id = bt.id
+      INNER JOIN routes r ON s.route_id = r.id
+      INNER JOIN provinces p1 ON r.departure_province_id = p1.id
+      INNER JOIN provinces p2 ON r.arrival_province_id = p2.id
+      LEFT JOIN stops st1 ON b.pickup_stop_id = st1.id
+      LEFT JOIN stops st2 ON b.dropoff_stop_id = st2.id
+      WHERE b.id = :bookingId
+    `;
+    
+    const booking = await db.query(bookingQuery, {
+      replacements: { bookingId },
+      type: QueryTypes.SELECT
+    });
+    
+    if (booking.length === 0) {
+      const response = ResponseHandler.notFound('Không tìm thấy vé xe');
+      return res.status(response.status).json({
+        success: false,
+        message: response.message
+      });
+    }
+    
+    const bookingData = booking[0];
+    
+    // Lấy thông tin ghế đã đặt
+    const seatsQuery = `
+      SELECT 
+        bs.seat_id as seatId,
+        s.seat_number as seatNumber,
+        s.floor,
+        bs.price
+      FROM booking_seats bs
+      INNER JOIN seats s ON bs.seat_id = s.id
+      WHERE bs.booking_id = :bookingId
+    `;
+    
+    const seats = await db.query(seatsQuery, {
+      replacements: { bookingId },
+      type: QueryTypes.SELECT
+    });
+    
+    const response = ResponseHandler.success({
+      id: bookingData.id,
+      totalPrice: parseFloat(bookingData.totalPrice),
+      status: bookingData.status,
+      bookedAt: bookingData.bookedAt,
+      paymentMethod: bookingData.paymentMethod,
+      user: {
+        id: bookingData.userId,
+        name: bookingData.userName,
+        email: bookingData.userEmail,
+        phone: bookingData.userPhone
+      },
+      schedule: {
+        id: bookingData.scheduleId,
+        departureTime: bookingData.departureTime,
+        seatPrice: parseFloat(bookingData.seatPrice)
+      },
+      bus: {
+        licensePlate: bookingData.licensePlate,
+        busType: bookingData.busType
+      },
+      route: {
+        departureProvince: bookingData.departureProvince,
+        arrivalProvince: bookingData.arrivalProvince,
+        pickupStop: bookingData.pickupStop,
+        dropoffStop: bookingData.dropoffStop
+      },
+      seats: seats.map(seat => ({
+        seatId: seat.seatId,
+        seatNumber: seat.seatNumber,
+        floor: seat.floor,
+        price: parseFloat(seat.price)
+      }))
+    });
+  } catch (error) {
+    console.error('Error in getBookingById:', error);
+    const response = ResponseHandler.error('Không thể lấy chi tiết vé xe', 500);
+  }
+};
+
+/**
+ * @swagger
+ * /api/admin/bookings/{bookingId}/status:
+ *   patch:
+ *     summary: Cập nhật trạng thái booking
+ *     tags: [Admin Bookings]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: bookingId
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: ID của booking
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - status
+ *             properties:
+ *               status:
+ *                 type: string
+ *                 enum: [paid, completed]
+ *                 description: Trạng thái mới
+ *               reason:
+ *                 type: string
+ *                 description: Lý do cập nhật
+ *     responses:
+ *       200:
+ *         description: Cập nhật thành công
+ *       404:
+ *         description: Không tìm thấy booking
+ *       400:
+ *         description: Dữ liệu không hợp lệ
+ *       500:
+ *         description: Lỗi server
+ */
+const updateBookingStatus = async (req, res) => {
+  try {
+    const { bookingId } = req.params;
+    const { status, reason } = req.body;
+
+    if (!status || !['paid', 'completed'].includes(status)) {
+      const response = ResponseHandler.error('Trạng thái không hợp lệ', 400);
+    }
+
+    // Kiểm tra booking có tồn tại không
+    const checkQuery = `SELECT status FROM bookings WHERE id = :bookingId`;
+    const checkResult = await db.query(checkQuery, {
+      replacements: { bookingId },
+      type: QueryTypes.SELECT
+    });
+
+    if (checkResult.length === 0) {
+      const response = ResponseHandler.error('Không tìm thấy vé xe', 404);
+    }
+
+    if (checkResult[0].status !== 'pending') {
+      const response = ResponseHandler.error('Chỉ có thể cập nhật vé xe đang chờ thanh toán', 400);
+    }
+
+    // Cập nhật trạng thái
+    const updateQuery = `
+      UPDATE bookings 
+      SET status = :status
+      WHERE id = :bookingId
+    `;
+    
+    await db.query(updateQuery, {
+      replacements: { status, bookingId },
+      type: QueryTypes.UPDATE
+    });
+    
+    // Nếu cập nhật thành 'paid', cập nhật payment_status
+    if (status === 'paid') {
+      const updatePaymentQuery = `
+        UPDATE bookings 
+        SET payment_status = 'success', payment_completed_at = GETDATE()
+        WHERE id = :bookingId
+      `;
+      
+      await db.query(updatePaymentQuery, {
+        replacements: { bookingId },
+        type: QueryTypes.UPDATE
+      });
+    }
+
+    const response = ResponseHandler.success({ message: 'Cập nhật trạng thái thành công' });
+  } catch (error) {
+    console.error('Error in updateBookingStatus:', error);
+    const response = ResponseHandler.error('Không thể cập nhật trạng thái', 500);
+  }
+};
+
+/**
+ * @swagger
+ * /api/admin/bookings/{bookingId}/cancel:
+ *   post:
+ *     summary: Hủy booking
+ *     tags: [Admin Bookings]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: bookingId
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: ID của booking
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - reason
+ *             properties:
+ *               reason:
+ *                 type: string
+ *                 description: Lý do hủy
+ *     responses:
+ *       200:
+ *         description: Hủy thành công
+ *       404:
+ *         description: Không tìm thấy booking
+ *       400:
+ *         description: Dữ liệu không hợp lệ
+ *       500:
+ *         description: Lỗi server
+ */
+const cancelBooking = async (req, res) => {
+  try {
+    const { bookingId } = req.params;
+    const { reason } = req.body;
+
+    if (!reason) {
+      const response = ResponseHandler.error('Vui lòng nhập lý do hủy', 400);
+    }
+
+    // Kiểm tra booking có tồn tại không
+    const checkQuery = `SELECT status FROM bookings WHERE id = :bookingId`;
+    const checkResult = await db.query(checkQuery, {
+      replacements: { bookingId },
+      type: QueryTypes.SELECT
+    });
+
+    if (checkResult.length === 0) {
+      const response = ResponseHandler.error('Không tìm thấy vé xe', 404);
+    }
+
+    if (checkResult[0].status === 'cancelled') {
+      const response = ResponseHandler.error('Vé xe đã được hủy trước đó', 400);
+    }
+
+    if (checkResult[0].status === 'completed') {
+      const response = ResponseHandler.error('Không thể hủy vé xe đã hoàn thành', 400);
+    }
+
+    // Bắt đầu transaction
+    const transaction = await db.transaction();
+    
+    try {
+      // Cập nhật trạng thái booking
+      const updateBookingQuery = `
+        UPDATE bookings 
+        SET status = 'cancelled'
+        WHERE id = :bookingId
+      `;
+      
+      await db.query(updateBookingQuery, {
+        replacements: { bookingId },
+        type: QueryTypes.UPDATE,
+        transaction
+      });
+      
+      // Cập nhật trạng thái ghế về available
+      const updateSeatsQuery = `
+        UPDATE seats 
+        SET status = 'available'
+        WHERE id IN (
+          SELECT seat_id 
+          FROM booking_seats 
+          WHERE booking_id = :bookingId
+        )
+      `;
+      
+      await db.query(updateSeatsQuery, {
+        replacements: { bookingId },
+        type: QueryTypes.UPDATE,
+        transaction
+      });
+      
+      // Commit transaction
+      await transaction.commit();
+      
+      const response = ResponseHandler.success({ message: 'Hủy vé xe thành công' });
+    } catch (error) {
+      // Rollback nếu có lỗi
+      await transaction.rollback();
+      throw error;
+    }
+  } catch (error) {
+    console.error('Error in cancelBooking:', error);
+    const response = ResponseHandler.error('Không thể hủy vé xe', 500);
+  }
+};
+
+/**
+ * @swagger
+ * /api/admin/bookings/user/{userId}:
+ *   get:
+ *     summary: Lấy danh sách booking theo user (Admin)
+ *     tags: [Admin - Bookings]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: userId
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: ID của user
+ *       - in: query
+ *         name: page
+ *         schema:
+ *           type: integer
+ *           default: 1
+ *         description: Trang hiện tại
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *           default: 10
+ *         description: Số lượng item mỗi trang
+ *     responses:
+ *       200:
+ *         description: Thành công
+ *       400:
+ *         description: ID user không hợp lệ
+ *       404:
+ *         description: Không tìm thấy user
+ *       401:
+ *         description: Không có quyền truy cập
+ *       500:
+ *         description: Lỗi server
+ */
+const getBookingsByUser = async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const { page = 1, limit = 10 } = req.query;
+    const offset = (page - 1) * limit;
+
+    // Kiểm tra user có tồn tại không
+    const userCheckQuery = `SELECT id FROM users WHERE id = :userId`;
+    const userCheckResult = await db.query(userCheckQuery, {
+      replacements: { userId },
+      type: QueryTypes.SELECT
+    });
+
+    if (userCheckResult.length === 0) {
+      const response = ResponseHandler.error('Không tìm thấy người dùng', 404);
+    }
+
+    // Query đếm tổng số
+    const countQuery = `
+      SELECT COUNT(*) as total
+      FROM bookings b
+      WHERE b.user_id = :userId
+    `;
+    
+    const countResult = await db.query(countQuery, {
+      replacements: { userId },
+      type: QueryTypes.SELECT
+    });
+    
+    const total = countResult[0].total;
+    const totalPages = Math.ceil(total / limit);
+    
+    // Query lấy dữ liệu
+    const dataQuery = `
+      SELECT 
+        b.id,
+        b.total_price as totalPrice,
+        b.status,
+        b.booked_at as bookedAt,
+        b.payment_method as paymentMethod,
+        u.id as userId,
+        u.full_name as userName,
+        u.email as userEmail,
+        u.phone_number as userPhone,
+        s.id as scheduleId,
+        s.departure_time as departureTime,
+        s.price as seatPrice,
+        bus.license_plate as licensePlate,
+        bt.name as busType,
+        p1.name as departureProvince,
+        p2.name as arrivalProvince,
+        st1.name as pickupStop,
+        st2.name as dropoffStop
+      FROM bookings b
+      INNER JOIN users u ON b.user_id = u.id
+      INNER JOIN schedules s ON b.schedule_id = s.id
+      INNER JOIN buses bus ON s.bus_id = bus.id
+      INNER JOIN bus_types bt ON bus.bus_type_id = bt.id
+      INNER JOIN routes r ON s.route_id = r.id
+      INNER JOIN provinces p1 ON r.departure_province_id = p1.id
+      INNER JOIN provinces p2 ON r.arrival_province_id = p2.id
+      LEFT JOIN stops st1 ON b.pickup_stop_id = st1.id
+      LEFT JOIN stops st2 ON b.dropoff_stop_id = st2.id
+      WHERE b.user_id = :userId
+      ORDER BY b.booked_at DESC
+      OFFSET :offset ROWS
+      FETCH NEXT :limit ROWS ONLY
+    `;
+    
+    const bookings = await db.query(dataQuery, {
+      replacements: { userId, offset: parseInt(offset), limit: parseInt(limit) },
+      type: QueryTypes.SELECT
+    });
+    
+    // Format dữ liệu trả về
+    const formattedBookings = bookings.map(booking => ({
+      id: booking.id,
+      totalPrice: parseFloat(booking.totalPrice),
+      status: booking.status,
+      bookedAt: booking.bookedAt,
+      paymentMethod: booking.paymentMethod,
+      user: {
+        id: booking.userId,
+        name: booking.userName,
+        email: booking.userEmail,
+        phone: booking.userPhone
+      },
+      schedule: {
+        id: booking.scheduleId,
+        departureTime: booking.departureTime,
+        seatPrice: parseFloat(booking.seatPrice)
+      },
+      bus: {
+        licensePlate: booking.licensePlate,
+        busType: booking.busType
+      },
+      route: {
+        departureProvince: booking.departureProvince,
+        arrivalProvince: booking.arrivalProvince,
+        pickupStop: booking.pickupStop,
+        dropoffStop: booking.dropoffStop
+      }
+    }));
+    
+    const response = ResponseHandler.success({
+      bookings: formattedBookings,
+      total,
+      page: parseInt(page),
+      limit: parseInt(limit),
+      totalPages
+    });
+  } catch (error) {
+    console.error('Error in getBookingsByUser:', error);
+    const response = ResponseHandler.error('Không thể lấy danh sách vé xe của người dùng', 500);
+  }
+};
+
+/**
+ * @swagger
+ * /api/admin/bookings/schedule/{scheduleId}:
+ *   get:
+ *     summary: Lấy danh sách booking theo schedule (Admin)
+ *     tags: [Admin - Bookings]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: scheduleId
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: ID của schedule
+ *       - in: query
+ *         name: page
+ *         schema:
+ *           type: integer
+ *           default: 1
+ *         description: Trang hiện tại
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *           default: 10
+ *         description: Số lượng item mỗi trang
+ *     responses:
+ *       200:
+ *         description: Thành công
+ *       400:
+ *         description: ID schedule không hợp lệ
+ *       404:
+ *         description: Không tìm thấy schedule
+ *       401:
+ *         description: Không có quyền truy cập
+ *       500:
+ *         description: Lỗi server
+ */
+const getBookingsBySchedule = async (req, res) => {
+  try {
+    const { scheduleId } = req.params;
+    const { page = 1, limit = 10 } = req.query;
+    const offset = (page - 1) * limit;
+
+    // Kiểm tra schedule có tồn tại không
+    const scheduleCheckQuery = `SELECT id FROM schedules WHERE id = :scheduleId`;
+    const scheduleCheckResult = await db.query(scheduleCheckQuery, {
+      replacements: { scheduleId },
+      type: QueryTypes.SELECT
+    });
+
+    if (scheduleCheckResult.length === 0) {
+      const response = ResponseHandler.error('Không tìm thấy lịch trình', 404);
+    }
+
+    // Query đếm tổng số
+    const countQuery = `
+      SELECT COUNT(*) as total
+      FROM bookings b
+      WHERE b.schedule_id = :scheduleId
+    `;
+    
+    const countResult = await db.query(countQuery, {
+      replacements: { scheduleId },
+      type: QueryTypes.SELECT
+    });
+    
+    const total = countResult[0].total;
+    const totalPages = Math.ceil(total / limit);
+    
+    // Query lấy dữ liệu
+    const dataQuery = `
+      SELECT 
+        b.id,
+        b.total_price as totalPrice,
+        b.status,
+        b.booked_at as bookedAt,
+        b.payment_method as paymentMethod,
+        u.id as userId,
+        u.full_name as userName,
+        u.email as userEmail,
+        u.phone_number as userPhone,
+        s.id as scheduleId,
+        s.departure_time as departureTime,
+        s.price as seatPrice,
+        bus.license_plate as licensePlate,
+        bt.name as busType,
+        p1.name as departureProvince,
+        p2.name as arrivalProvince,
+        st1.name as pickupStop,
+        st2.name as dropoffStop
+      FROM bookings b
+      INNER JOIN users u ON b.user_id = u.id
+      INNER JOIN schedules s ON b.schedule_id = s.id
+      INNER JOIN buses bus ON s.bus_id = bus.id
+      INNER JOIN bus_types bt ON bus.bus_type_id = bt.id
+      INNER JOIN routes r ON s.route_id = r.id
+      INNER JOIN provinces p1 ON r.departure_province_id = p1.id
+      INNER JOIN provinces p2 ON r.arrival_province_id = p2.id
+      LEFT JOIN stops st1 ON b.pickup_stop_id = st1.id
+      LEFT JOIN stops st2 ON b.dropoff_stop_id = st2.id
+      WHERE b.schedule_id = :scheduleId
+      ORDER BY b.booked_at DESC
+      OFFSET :offset ROWS
+      FETCH NEXT :limit ROWS ONLY
+    `;
+    
+    const bookings = await db.query(dataQuery, {
+      replacements: { scheduleId, offset: parseInt(offset), limit: parseInt(limit) },
+      type: QueryTypes.SELECT
+    });
+    
+    // Format dữ liệu trả về
+    const formattedBookings = bookings.map(booking => ({
+      id: booking.id,
+      totalPrice: parseFloat(booking.totalPrice),
+      status: booking.status,
+      bookedAt: booking.bookedAt,
+      paymentMethod: booking.paymentMethod,
+      user: {
+        id: booking.userId,
+        name: booking.userName,
+        email: booking.userEmail,
+        phone: booking.userPhone
+      },
+      schedule: {
+        id: booking.scheduleId,
+        departureTime: booking.departureTime,
+        seatPrice: parseFloat(booking.seatPrice)
+      },
+      bus: {
+        licensePlate: booking.licensePlate,
+        busType: booking.busType
+      },
+      route: {
+        departureProvince: booking.departureProvince,
+        arrivalProvince: booking.arrivalProvince,
+        pickupStop: booking.pickupStop,
+        dropoffStop: booking.dropoffStop
+      }
+    }));
+    
+    const response = ResponseHandler.success({
+      bookings: formattedBookings,
+      total,
+      page: parseInt(page),
+      limit: parseInt(limit),
+      totalPages
+    });
+  } catch (error) {
+    console.error('Error in getBookingsBySchedule:', error);
+    const response = ResponseHandler.error('Không thể lấy danh sách vé xe của lịch trình', 500);
+  }
+};
+
+module.exports = {
+  getAllBookings,
+  getBookingStats,
+  getBookingById,
+  updateBookingStatus,
+  cancelBooking,
+  getBookingsByUser,
+  getBookingsBySchedule
+}; 
