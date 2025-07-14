@@ -129,12 +129,12 @@ interface ApiResponse<T> {
 
 ## API Base URL
 
-Hiện tại sử dụng: `http://localhost:5000/api`
+Hiện tại sử dụng: `http://14.225.255.72:5000/api`
 
 Có thể thay đổi trong file `api.ts`:
 
 ```typescript
-const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
+const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://14.225.255.72:5000/api';
 ```
 
 ## Error Handling

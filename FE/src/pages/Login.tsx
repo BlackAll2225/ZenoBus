@@ -1,58 +1,64 @@
-import React, { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Alert, AlertDescription } from '@/components/ui/alert';
-import { User, Lock, Bus } from 'lucide-react';
-import { ArrowLeft } from 'lucide-react';
+import React, { useState } from "react";
+import { Link, useNavigate } from "react-router-dom";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { User, Lock, Bus } from "lucide-react";
+import { ArrowLeft } from "lucide-react";
 const Login = () => {
   const navigate = useNavigate();
 
   const [formData, setFormData] = useState({
-    email: '',
-    password: ''
+    email: "",
+    password: "",
   });
 
-  const [error, setError] = useState('');
-  const [success, setSuccess] = useState('');
+  const [error, setError] = useState("");
+  const [success, setSuccess] = useState("");
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      const res = await fetch('http://localhost:5000/api/auth/login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+      const res = await fetch("http://14.225.255.72:5000/api/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify(formData),
       });
 
       const data = await res.json();
-      if (!res.ok) throw new Error(data.message || 'Đăng nhập thất bại');
+      if (!res.ok) throw new Error(data.message || "Đăng nhập thất bại");
 
-      localStorage.setItem('token', data.data.token);
-      localStorage.setItem('username', data.data.user.fullName); // Save user's full name
-      localStorage.setItem('userId', data.data.user.id.toString()); // Save user's ID
-      setSuccess('Đăng nhập thành công!');
-      setError('');
+      localStorage.setItem("token", data.data.token);
+      localStorage.setItem("username", data.data.user.fullName); // Save user's full name
+      localStorage.setItem("userId", data.data.user.id.toString()); // Save user's ID
+      setSuccess("Đăng nhập thành công!");
+      setError("");
 
       setTimeout(() => {
-        navigate('/');
+        navigate("/");
       }, 1000);
     } catch (err: unknown) {
       if (err instanceof Error) {
         setError(err.message);
       } else {
-        setError('Có lỗi xảy ra!');
+        setError("Có lỗi xảy ra!");
       }
-      setSuccess('');
+      setSuccess("");
     }
   };
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setFormData(prev => ({
+    setFormData((prev) => ({
       ...prev,
-      [e.target.name]: e.target.value
+      [e.target.name]: e.target.value,
     }));
   };
 
@@ -66,18 +72,20 @@ const Login = () => {
           <h1 className="text-3xl font-bold text-white mb-2">Phương Trang</h1>
           <p className="text-white/80">Hệ thống đặt vé xe khách</p>
         </div>
-<Button
-    variant="outline"
-    size="sm"
-    className="mb-4 border-gray-300 text-green-700 hover:bg-green-100"
-    onClick={() => navigate(-1)}
-  >
-    <ArrowLeft className="h-4 w-4 mr-2" />
-    Quay lại
-  </Button>
+        <Button
+          variant="outline"
+          size="sm"
+          className="mb-4 border-gray-300 text-green-700 hover:bg-green-100"
+          onClick={() => navigate(-1)}
+        >
+          <ArrowLeft className="h-4 w-4 mr-2" />
+          Quay lại
+        </Button>
         <Card className="shadow-elegant border-0">
           <CardHeader className="space-y-1 text-center">
-            <CardTitle className="text-2xl font-bold text-gray-800">Đăng nhập</CardTitle>
+            <CardTitle className="text-2xl font-bold text-gray-800">
+              Đăng nhập
+            </CardTitle>
             <CardDescription className="text-gray-600">
               Nhập thông tin để truy cập tài khoản của bạn
             </CardDescription>
@@ -85,18 +93,24 @@ const Login = () => {
           <CardContent className="space-y-4">
             {error && (
               <Alert className="border-vibrant-red bg-vibrant-red/5">
-                <AlertDescription className="text-vibrant-red">{error}</AlertDescription>
+                <AlertDescription className="text-vibrant-red">
+                  {error}
+                </AlertDescription>
               </Alert>
             )}
             {success && (
               <Alert className="border-primary-green bg-primary-green/5">
-                <AlertDescription className="text-primary-green">{success}</AlertDescription>
+                <AlertDescription className="text-primary-green">
+                  {success}
+                </AlertDescription>
               </Alert>
             )}
 
             <form onSubmit={handleSubmit} className="space-y-4">
               <div className="space-y-2">
-                <Label htmlFor="email" className="text-gray-700 font-medium">Email</Label>
+                <Label htmlFor="email" className="text-gray-700 font-medium">
+                  Email
+                </Label>
                 <div className="relative">
                   <User className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
                   <Input
@@ -113,7 +127,9 @@ const Login = () => {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="password" className="text-gray-700 font-medium">Mật khẩu</Label>
+                <Label htmlFor="password" className="text-gray-700 font-medium">
+                  Mật khẩu
+                </Label>
                 <div className="relative">
                   <Lock className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
                   <Input
@@ -129,13 +145,19 @@ const Login = () => {
                 </div>
               </div>
 
-              <Button type="submit" className="w-full h-12 bg-primary-green hover:bg-primary-green-dark text-white font-semibold rounded-lg shadow-md transition-all">
+              <Button
+                type="submit"
+                className="w-full h-12 bg-primary-green hover:bg-primary-green-dark text-white font-semibold rounded-lg shadow-md transition-all"
+              >
                 Đăng nhập
               </Button>
             </form>
 
             <div className="text-center space-y-2">
-              <Link to="/forgot-password" className="text-primary-green text-sm font-medium">
+              <Link
+                to="/forgot-password"
+                className="text-primary-green text-sm font-medium"
+              >
                 Quên mật khẩu?
               </Link>
             </div>
@@ -151,13 +173,17 @@ const Login = () => {
 
             <div className="text-center">
               <span className="text-gray-600">Chưa có tài khoản? </span>
-              <Link to="/register" className="text-vibrant-red font-semibold">Đăng ký ngay</Link>
+              <Link to="/register" className="text-vibrant-red font-semibold">
+                Đăng ký ngay
+              </Link>
             </div>
           </CardContent>
         </Card>
 
         <div className="text-center mt-6">
-          <p className="text-white/60 text-sm">© 2024 Phương Trang. All rights reserved.</p>
+          <p className="text-white/60 text-sm">
+            © 2024 Phương Trang. All rights reserved.
+          </p>
         </div>
       </div>
     </div>

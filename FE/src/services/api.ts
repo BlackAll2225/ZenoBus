@@ -1,11 +1,11 @@
-import axios from 'axios';
+import axios from "axios";
 
-const API_BASE_URL = 'http://localhost:5000/api';
+const API_BASE_URL = "http://14.225.255.72:5000/api";
 
 const api = axios.create({
   baseURL: API_BASE_URL,
   headers: {
-    'Content-Type': 'application/json',
+    "Content-Type": "application/json",
   },
   timeout: 10000, // 10 seconds timeout
 });
@@ -13,7 +13,7 @@ const api = axios.create({
 // Request interceptor để thêm token
 api.interceptors.request.use(
   (config) => {
-    const token = localStorage.getItem('token');
+    const token = localStorage.getItem("token");
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
@@ -34,21 +34,21 @@ api.interceptors.response.use(
     if (error.response?.status === 401) {
       // Unauthorized - clear token and redirect to login
       // Chỉ redirect nếu không phải đang ở trang login
-      if (!window.location.pathname.includes('/login')) {
-        localStorage.removeItem('token');
-        localStorage.removeItem('username');
-        localStorage.removeItem('role');
-        window.location.href = '/login';
+      if (!window.location.pathname.includes("/login")) {
+        localStorage.removeItem("token");
+        localStorage.removeItem("username");
+        localStorage.removeItem("role");
+        window.location.href = "/login";
       }
     }
-    
+
     if (error.response?.status === 403) {
       // Forbidden - redirect to home
-      window.location.href = '/';
+      window.location.href = "/";
     }
 
     return Promise.reject(error);
   }
 );
 
-export default api; 
+export default api;
