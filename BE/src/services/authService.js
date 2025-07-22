@@ -9,7 +9,7 @@ const register = async (fullName, email, phoneNumber, password) => {
     throw new Error("Email already exists");
   }
 
-  const passwordHash = await hashPassword(password);
+  const passwordHash = password;
   
   // Create new user
   const user = await User.create({
