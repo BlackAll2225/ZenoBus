@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Frontend Timezone Test</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .test-section { margin: 20px 0; padding: 15px; border: 1px solid #ddd; }
+        .result { background: #f5f5f5; padding: 10px; margin: 5px 0; }
+        .success { background: #d4edda; color: #155724; }
+        .error { background: #f8d7da; color: #721c24; }
+    </style>
+</head>
+<body>
+    <h1>Frontend Timezone Test</h1>
+    
+    <div class="test-section">
+        <h2>1. Browser Timezone Info</h2>
+        <div class="result" id="browser-info"></div>
+    </div>
+
+    <div class="test-section">
+        <h2>2. UTC to VN Time Conversion</h2>
+        <div class="result" id="utc-conversion"></div>
+    </div>
+
+    <div class="test-section">
+        <h2>3. VN Time to UTC Conversion</h2>
+        <div class="result" id="vn-conversion"></div>
+    </div>
+
+    <div class="test-section">
+        <h2>4. Date Formatting Tests</h2>
+        <div class="result" id="formatting-tests"></div>
+    </div>
+
+    <div class="test-section">
+        <h2>5. API Response Simulation</h2>
+        <div class="result" id="api-simulation"></div>
+    </div>
+
+    <script>
+        // Simulate timezone utility functions (simplified version of dateUtils.ts)
+        const TIMEZONE_OFFSET_HOURS = 7;
+
+        function convertUTCToVNTime(utcDateString) {
+            try {
+                const utcDate = new Date(utcDateString);
+                return new Date(utcDate.getTime() + (TIMEZONE_OFFSET_HOURS * 60 * 60 * 1000));
+            } catch (error) {
+                console.error('Error converting UTC to VN time:', error);
+                return new Date();
+            }
+        }
+
+        function convertVNTimeToUTC(vnDate) {
+            return new Date(vnDate.getTime() - (TIMEZONE_OFFSET_HOURS * 60 * 60 * 1000));
+        }
+
+        function formatTime(date) {
+            return date.toLocaleTimeString('vi-VN', { 
+                hour: '2-digit', 
+                minute: '2-digit',
+                timeZone: 'Asia/Ho_Chi_Minh'
+            });
+        }
+
+        function formatDate(date) {
+            return date.toLocaleDateString('vi-VN', {
+                weekday: 'long',
+                year: 'numeric',
+                month: 'long', 
+                day: 'numeric',
+                timeZone: 'Asia/Ho_Chi_Minh'
+            });
+        }
+
+        // Test 1: Browser timezone info
+        function testBrowserInfo() {
+            const now = new Date();
+            const info = `
+                <strong>Browser Info:</strong><br>
+                • Timezone Offset: ${now.getTimezoneOffset()} minutes<br>
+                • Locale: ${navigator.language}<br>
+                • Current Time: ${now.toString()}<br>
+                • UTC Time: ${now.toISOString()}<br>
+                • VN Time: ${now.toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' })}
+            `;
+            document.getElementById('browser-info').innerHTML = info;
+        }
+
+        // Test 2: UTC to VN time conversion
+        function testUTCConversion() {
+            const utcTimeFromAPI = '2025-01-15T07:30:00.000Z'; // 7:30 AM UTC
+            const vnTime = convertUTCToVNTime(utcTimeFromAPI);
+            
+            const info = `
+                <strong>UTC to VN Conversion:</strong><br>
+                • API Response (UTC): ${utcTimeFromAPI}<br>
+                • Converted to VN Time: ${vnTime.toISOString()}<br>
+                • Display Time: ${formatTime(vnTime)} (should be 14:30)<br>
+                • Display Date: ${formatDate(vnTime)}
+            `;
+            document.getElementById('utc-conversion').innerHTML = info;
+        }
+
+        // Test 3: VN time to UTC conversion
+        function testVNConversion() {
+            // User selects 2:30 PM VN time
+            const vnTime = new Date('2025-01-15T14:30:00'); // Browser interprets as local
+            const utcTime = convertVNTimeToUTC(vnTime);
+            
+            const info = `
+                <strong>VN to UTC Conversion:</strong><br>
+                • User Input (VN Time): 2025-01-15 14:30<br>
+                • Local Date Object: ${vnTime.toISOString()}<br>
+                • Converted to UTC: ${utcTime.toISOString()}<br>
+                • Send to API: ${utcTime.toISOString()} (should be 07:30 UTC)
+            `;
+            document.getElementById('vn-conversion').innerHTML = info;
+        }
+
+        // Test 4: Date formatting
+        function testFormatting() {
+            const sampleUTCTimes = [
+                '2025-01-15T07:30:00.000Z', // Morning
+                '2025-01-15T12:00:00.000Z', // Noon  
+                '2025-01-15T17:45:00.000Z', // Evening
+                '2025-01-15T23:30:00.000Z'  // Late night
+            ];
+
+            let info = '<strong>Formatting Tests:</strong><br>';
+            sampleUTCTimes.forEach(utcTime => {
+                const vnTime = convertUTCToVNTime(utcTime);
+                info += `• UTC ${utcTime} → VN ${formatTime(vnTime)} ${formatDate(vnTime)}<br>`;
+            });
+
+            document.getElementById('formatting-tests').innerHTML = info;
+        }
+
+        // Test 5: API response simulation
+        function testAPISimulation() {
+            // Simulate API response for a schedule
+            const apiResponse = {
+                id: 1,
+                departureTime: '2025-01-15T07:30:00.000Z', // UTC from backend
+                arrivalTime: '2025-01-15T13:30:00.000Z',   // UTC from backend
+                createdAt: '2025-01-10T10:00:00.000Z'      // UTC from backend
+            };
+
+            const departureVN = convertUTCToVNTime(apiResponse.departureTime);
+            const arrivalVN = convertUTCToVNTime(apiResponse.arrivalTime);
+            const createdVN = convertUTCToVNTime(apiResponse.createdAt);
+
+            const info = `
+                <strong>API Response Simulation:</strong><br>
+                <strong>Raw API Data:</strong><br>
+                • Departure: ${apiResponse.departureTime}<br>
+                • Arrival: ${apiResponse.arrivalTime}<br>
+                • Created: ${apiResponse.createdAt}<br>
+                <br>
+                <strong>Displayed to User (VN Time):</strong><br>
+                • Departure: ${formatTime(departureVN)} - ${formatDate(departureVN)}<br>
+                • Arrival: ${formatTime(arrivalVN)} - ${formatDate(arrivalVN)}<br>
+                • Created: ${createdVN.toLocaleDateString('vi-VN')}
+            `;
+            document.getElementById('api-simulation').innerHTML = info;
+        }
+
+        // Run all tests
+        function runAllTests() {
+            testBrowserInfo();
+            testUTCConversion();
+            testVNConversion();
+            testFormatting();
+            testAPISimulation();
+        }
+
+        // Run tests when page loads
+        window.onload = runAllTests;
+    </script>
+
+    <div class="test-section">
+        <h2>Expected Results</h2>
+        <div class="result success">
+            ✅ UTC 07:30 should display as VN 14:30<br>
+            ✅ User input VN 14:30 should convert to UTC 07:30<br>
+            ✅ All times should be consistently formatted in Vietnamese<br>
+            ✅ API responses in UTC should be properly converted for display
+        </div>
+    </div>
+
+    <button onclick="runAllTests()" style="padding: 10px 20px; margin: 20px 0;">🔄 Re-run Tests</button>
+</body>
+</html> 

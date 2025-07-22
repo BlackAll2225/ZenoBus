@@ -1,0 +1,48 @@
+# =============================
+# ✅ General Node/Vite project
+# =============================
+
+# Dependency directories
+node_modules/
+dist/
+dist-ssr/
+build/
+
+# Local env files
+.env
+.env.*.local
+
+# Local config overrides
+*.local
+
+# Log files
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# OS-specific files
+.DS_Store
+Thumbs.db
+
+# Editor config
+.vscode/
+!.vscode/extensions.json  # allow sharing recommended extensions
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# Output from testing frameworks
+coverage/
+
+# Misc
+*.tgz
+*.bak
+*.old
+*.orig
