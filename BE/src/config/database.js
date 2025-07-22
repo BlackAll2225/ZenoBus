@@ -1,30 +1,26 @@
-const { Sequelize } = require('sequelize');
-require('dotenv').config();
+const { Sequelize } = require("sequelize");
+require("dotenv").config();
 
-const sequelize = new Sequelize(
-  'BusTicketSystem2',
-  'sa',
-  'YourPassword123',
-  {
-    host: 'localhost',
-    dialect: 'mssql',
-    dialectOptions: {
-      options: {
-        trustServerCertificate: true,
-        encrypt: false
-      }
+const sequelize = new Sequelize("BusTicketSystem2", "sa", "StrongPa$$123", {
+  host: "14.225.255.72",
+  dialect: "mssql",
+  dialectOptions: {
+    options: {
+      trustServerCertificate: true,
+      encrypt: false,
     },
-    logging: false
-  }
-);
+  },
+  logging: false,
+});
 
 // Test connection
-sequelize.authenticate()
+sequelize
+  .authenticate()
   .then(() => {
-    console.log('Connection has been established successfully.');
+    console.log("Connection has been established successfully.");
   })
-  .catch(err => {
-    console.error('Unable to connect to the database:', err);
+  .catch((err) => {
+    console.error("Unable to connect to the database:", err);
   });
 
-module.exports = sequelize; 
+module.exports = sequelize;
