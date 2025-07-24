@@ -445,6 +445,43 @@ router.post("/", requireAdminOrManager, validateRoute, handleValidationErrors, r
  */
 router.put("/:id", requireAdminOrManager, validateRouteUpdate, handleValidationErrors, routeController.updateRoute);
 
+
+/**
+ * @swagger
+ * /api/routes/{id}/toggle-status:
+ *   patch:
+ *     summary: Toggle the active status of a route
+ *     tags: [Routes]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: Route ID
+ *     responses:
+ *       200:
+ *         description: Route status toggled successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 data:
+ *                   $ref: '#/components/schemas/Route'
+ *                 message:
+ *                   type: string
+ *       404:
+ *         description: Route not found
+ *       401:
+ *         description: Unauthorized - Admin authentication required
+ */
+router.patch("/:id/toggle-status", requireAdminOrManager, validateRouteId, handleValidationErrors, routeController.toggleRouteStatus);
+
 /**
  * @swagger
  * /api/routes/{id}:

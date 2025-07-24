@@ -35,6 +35,12 @@ const Route = sequelize.define('Route', {
     type: DataTypes.INTEGER,
     allowNull: true,
     field: 'estimated_time'
+  },
+  isActive: {
+    type: DataTypes.INTEGER,
+    allowNull: false,
+    defaultValue: true,
+    field: 'is_active'
   }
 }, {
   tableName: 'routes',

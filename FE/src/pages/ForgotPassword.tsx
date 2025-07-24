@@ -22,7 +22,7 @@ const ForgotPassword = () => {
     setSuccess('');
 
     try {
-      const res = await fetch('http://14.225.255.72:5000/api/auth/forgot-password', {
+      const res = await fetch('http://localhost:5000/api/auth/forgot-password', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email })

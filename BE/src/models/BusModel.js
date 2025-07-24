@@ -25,6 +25,12 @@ const Bus = sequelize.define('Bus', {
     type: DataTypes.INTEGER,
     allowNull: false,
     field: 'bus_type_id'
+  },
+  isActive: {
+    type: DataTypes.INTEGER,
+    allowNull: false,
+    defaultValue: true,
+    field: 'is_active'
   }
 }, {
   tableName: 'buses',

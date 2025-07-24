@@ -61,6 +61,7 @@ CREATE TABLE routes (
     arrival_province_id INT,
     distance_km INT,
     estimated_time INT,
+    is_active BIT DEFAULT 1,
     FOREIGN KEY (departure_province_id) REFERENCES provinces(id),
     FOREIGN KEY (arrival_province_id) REFERENCES provinces(id)
 );

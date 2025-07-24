@@ -6,7 +6,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Bus, MapPin, Calendar, CreditCard, User, Armchair, Clock, Receipt, Hash } from 'lucide-react';
 import { bookingService } from '@/services/bookingService';
 import { BookingEntity } from '@/services/types';
-import { formatUTCToVNTime } from '@/lib/dateUtils';
+import { formatUTCToVNTime, formatTimeFromUTC } from '@/lib/dateUtils';
 
 interface BookingDetailModalProps {
   isOpen: boolean;
@@ -62,22 +62,14 @@ export default function BookingDetailModal({ isOpen, onClose, bookingId }: Booki
     }
   };
 
-  const formatDate = (dateString: string) => {
-    // return formatUTCToVNTime(dateString, 'dd/MM/yyyy HH:mm');
-    return new Date(dateString).toLocaleDateString('vi-VN', {
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
-    });
+  const formatDate = (utcDateString: string) => {
+    // Convert UTC datetime from API to VN time for display
+    return formatUTCToVNTime(utcDateString, 'dd/MM/yyyy HH:mm');
   };
 
-  const formatTime = (dateString: string) => {
-    return new Date(dateString).toLocaleTimeString('vi-VN', {
-      hour: '2-digit',
-      minute: '2-digit'
-    });
+  const formatTime = (utcDateString: string) => {
+    // Convert UTC datetime from API to VN time for display
+    return formatTimeFromUTC(utcDateString);
   };
 
   const formatPrice = (price: number) => {

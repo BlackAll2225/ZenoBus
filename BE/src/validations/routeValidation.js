@@ -27,9 +27,9 @@ const validateRoute = [
 ];
 
 const validateRouteUpdate = [
-  param('id')
-    .isInt({ min: 1 })
-    .withMessage('Route ID must be a positive integer'),
+  // param('id')
+  //   .isInt({ min: 1 })
+  //   .withMessage('Route ID must be a positive integer'),
   
   body('departureProvinceId')
     .optional()
@@ -59,9 +59,9 @@ const validateRouteUpdate = [
 ];
 
 const validateRouteId = [
-  param('id')
-    .isInt({ min: 1 })
-    .withMessage('Route ID must be a positive integer'),
+  // param('id')
+  //   .isInt({ min: 1 })
+  //   .withMessage('Route ID must be a positive integer'),
 ];
 
 const validateProvinceId = [

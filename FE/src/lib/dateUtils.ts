@@ -31,6 +31,145 @@ export const convertVNTimeToUTC = (vnDate: Date): Date => {
 };
 
 /**
+ * Convert Vietnam datetime input to UTC ISO string for API
+ * @param vnDateTimeString - DateTime string in Vietnam timezone (YYYY-MM-DDTHH:mm format)
+ * @returns UTC ISO string for API submission
+ */
+export const convertVNDateTimeToUTCString = (vnDateTimeString: string): string => {
+  if (!vnDateTimeString) return '';
+  
+  try {
+    // Parse the datetime string as if it's in Vietnam timezone
+    const vnDate = new Date(vnDateTimeString);
+    // Convert to UTC
+    const utcDate = convertVNTimeToUTC(vnDate);
+    // Return ISO string (which is always in UTC)
+    return utcDate.toISOString();
+  } catch (error) {
+    console.error('Error converting VN datetime to UTC string:', error);
+    return '';
+  }
+};
+
+/**
+ * Convert UTC ISO string to Vietnam datetime input format
+ * @param utcISOString - UTC ISO string from API
+ * @returns DateTime string in YYYY-MM-DDTHH:mm format (Vietnam timezone) for form inputs
+ */
+export const convertUTCStringToVNDateTime = (utcISOString: string): string => {
+  if (!utcISOString) return '';
+  
+  try {
+    const vnDate = convertUTCToVNTime(utcISOString);
+    // Format for datetime-local input: YYYY-MM-DDTHH:mm
+    const year = vnDate.getFullYear();
+    const month = String(vnDate.getMonth() + 1).padStart(2, '0');
+    const day = String(vnDate.getDate()).padStart(2, '0');
+    const hours = String(vnDate.getHours()).padStart(2, '0');
+    const minutes = String(vnDate.getMinutes()).padStart(2, '0');
+    
+    return `${year}-${month}-${day}T${hours}:${minutes}`;
+  } catch (error) {
+    console.error('Error converting UTC string to VN datetime:', error);
+    return '';
+  }
+};
+
+/**
+ * Convert date input to UTC ISO date string for API
+ * @param vnDateString - Date string in Vietnam timezone (YYYY-MM-DD format)
+ * @returns UTC ISO date string for API submission
+ */
+export const convertVNDateToUTCString = (vnDateString: string): string => {
+  if (!vnDateString) return '';
+  
+  try {
+    // Create date at start of day in Vietnam timezone
+    const vnDate = new Date(vnDateString + 'T00:00:00');
+    // Convert to UTC
+    const utcDate = convertVNTimeToUTC(vnDate);
+    // Return just the date part
+    return utcDate.toISOString().split('T')[0];
+  } catch (error) {
+    console.error('Error converting VN date to UTC string:', error);
+    return '';
+  }
+};
+
+/**
+ * Convert VN date range to UTC date range for filtering
+ * @param vnDateString - Date string in Vietnam timezone (YYYY-MM-DD format)
+ * @returns Object with startUTC and endUTC for filtering
+ */
+export const convertVNDateRangeToUTC = (vnDateString: string): { startUTC: string; endUTC: string } => {
+  if (!vnDateString) return { startUTC: '', endUTC: '' };
+  
+  try {
+    // Start of VN day: 00:00:00 VN time
+    const vnStart = new Date(vnDateString + 'T00:00:00');
+    const utcStart = convertVNTimeToUTC(vnStart);
+    
+    // End of VN day: 23:59:59 VN time  
+    const vnEnd = new Date(vnDateString + 'T23:59:59');
+    const utcEnd = convertVNTimeToUTC(vnEnd);
+    
+    return {
+      startUTC: utcStart.toISOString(),
+      endUTC: utcEnd.toISOString()
+    };
+  } catch (error) {
+    console.error('Error converting VN date range to UTC:', error);
+    return { startUTC: '', endUTC: '' };
+  }
+};
+
+/**
+ * Get current Vietnam time as datetime-local input format
+ * @returns Current time in YYYY-MM-DDTHH:mm format (Vietnam timezone)
+ */
+export const getCurrentVNDateTime = (): string => {
+  const now = new Date();
+  // Get current UTC time and convert to Vietnam time
+  const vnTime = new Date(now.getTime() + (TIMEZONE_CONFIG.TIMEZONE_OFFSET_HOURS * 60 * 60 * 1000));
+  
+  const year = vnTime.getFullYear();
+  const month = String(vnTime.getMonth() + 1).padStart(2, '0');
+  const day = String(vnTime.getDate()).padStart(2, '0');
+  const hours = String(vnTime.getHours()).padStart(2, '0');
+  const minutes = String(vnTime.getMinutes()).padStart(2, '0');
+  
+  return `${year}-${month}-${day}T${hours}:${minutes}`;
+};
+
+/**
+ * Get current Vietnam date as date input format
+ * @returns Current date in YYYY-MM-DD format (Vietnam timezone)
+ */
+export const getCurrentVNDate = (): string => {
+  return getCurrentVNDateTime().split('T')[0];
+};
+
+/**
+ * Validate that a Vietnam datetime is not in the past
+ * @param vnDateTimeString - DateTime string in Vietnam timezone
+ * @returns true if valid (future), false if in the past
+ */
+export const isVNDateTimeInFuture = (vnDateTimeString: string): boolean => {
+  if (!vnDateTimeString) return false;
+  
+  try {
+    const inputDate = new Date(vnDateTimeString);
+    const now = new Date();
+    const vnNow = new Date(now.getTime() + (TIMEZONE_CONFIG.TIMEZONE_OFFSET_HOURS * 60 * 60 * 1000));
+    
+    return inputDate > vnNow;
+  } catch (error) {
+    console.error('Error validating VN datetime:', error);
+    return false;
+  }
+};
+
+/**
  * Format UTC date string to Vietnam time format
  * @param utcDateString - UTC date string from API
  * @param formatString - date-fns format string

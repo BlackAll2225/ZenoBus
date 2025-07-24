@@ -4,10 +4,11 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { useToast } from '@/hooks/use-toast';
 import { Loader2 } from 'lucide-react';
-import { api } from '@/services';
-import type { Schedule } from '@/services/scheduleService';
+import { toast } from '@/hooks/use-toast';
+import scheduleService, { Schedule, UpdateScheduleData } from '@/services/scheduleService';
+import api from '@/services/api';
+import { convertUTCStringToVNDateTime } from '@/lib/dateUtils';
 
 // Định nghĩa type cho dropdown
 interface DropdownRoute {
@@ -35,16 +36,15 @@ interface UpdateScheduleModalProps {
   isOpen: boolean;
   onClose: () => void;
   schedule: Schedule | null;
-  onSuccess: () => void;
+  onUpdate: () => void;
 }
 
 const UpdateScheduleModal: React.FC<UpdateScheduleModalProps> = ({
   isOpen,
   onClose,
   schedule,
-  onSuccess
+  onUpdate
 }) => {
-  const { toast } = useToast();
   const [loading, setLoading] = useState(false);
   const [dataLoading, setDataLoading] = useState(false);
 
@@ -71,16 +71,14 @@ const UpdateScheduleModal: React.FC<UpdateScheduleModalProps> = ({
 
   useEffect(() => {
     if (schedule) {
-      // Convert UTC time to VN time for display
-      const departureTime = new Date(schedule.departureTime);
-      const vnTime = new Date(departureTime.getTime() + (7 * 60 * 60 * 1000));
-      const formattedTime = vnTime.toISOString().slice(0, 16); // YYYY-MM-DDTHH:mm format
+      // Convert UTC time from API to VN datetime input format
+      const vnDateTime = convertUTCStringToVNDateTime(schedule.departureTime);
 
       setFormData({
         busId: schedule.busId.toString(),
         routeId: schedule.routeId.toString(),
         driverId: schedule.driverId.toString(),
-        departureTime: formattedTime,
+        departureTime: vnDateTime,
         price: schedule.price.toString(),
         status: schedule.status
       });
@@ -136,47 +134,32 @@ const UpdateScheduleModal: React.FC<UpdateScheduleModalProps> = ({
 
     setLoading(true);
     try {
-      // Convert VN time back to UTC for API
-      const vnTime = new Date(formData.departureTime);
-      const utcTime = new Date(vnTime.getTime() - (7 * 60 * 60 * 1000));
-      
-      // Format datetime for MSSQL (YYYY-MM-DD HH:mm:ss)
-      const formattedDateTime = utcTime.toISOString().slice(0, 19).replace('T', ' ');
-
-      const updateData = {
+      // Note: scheduleService.updateSchedule will handle VN to UTC conversion
+      const updateData: UpdateScheduleData = {
         busId: parseInt(formData.busId),
         routeId: parseInt(formData.routeId),
         driverId: parseInt(formData.driverId),
-        departureTime: formattedDateTime,
+        departureTime: formData.departureTime, // Will be converted to UTC by scheduleService
         price: parseFloat(formData.price),
-        status: formData.status
+        status: formData.status as 'scheduled' | 'completed' | 'cancelled' | 'delayed'
       };
 
-      await api.put(`/schedules/${schedule.id}`, updateData);
+      console.log('Update form data (VN time):', formData);
+      
+      await scheduleService.updateSchedule(schedule.id, updateData);
 
       toast({
         title: 'Thành công',
         description: 'Cập nhật lịch trình thành công.',
       });
 
-      onSuccess();
+      onUpdate();
       onClose();
-    } catch (error: unknown) {
+    } catch (error) {
       console.error('Error updating schedule:', error);
-      let errorMessage = 'Có lỗi xảy ra khi cập nhật lịch trình.';
-      
-      if (typeof error === 'object' && error !== null && 'response' in error) {
-        const axiosError = error as { response?: { data?: { message?: string } } };
-        if (axiosError.response?.data?.message) {
-          errorMessage = axiosError.response.data.message;
-        }
-      } else if (error instanceof Error) {
-        errorMessage = error.message;
-      }
-
       toast({
         title: 'Lỗi',
-        description: errorMessage,
+        description: 'Có lỗi xảy ra khi cập nhật lịch trình.',
         variant: 'destructive',
       });
     } finally {

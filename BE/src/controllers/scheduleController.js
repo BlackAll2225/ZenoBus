@@ -68,7 +68,7 @@ const scheduleController = {
       // Validation
       if (!scheduleData.busId || !scheduleData.routeId || !scheduleData.driverId || 
           !scheduleData.departureTime || !scheduleData.price) {
-        return res.status(400).json(ResponseHandler.error('Thiếu thông tin bắt buộc'));
+        return res.status(400).json(ResponseHandler.error(`Thiếu thông tin bắt buộc: ${Object.keys(scheduleData).filter(key => !scheduleData[key]).join(', ')}`));
       }
 
       const schedule = await scheduleService.createSchedule(scheduleData);
@@ -76,11 +76,19 @@ const scheduleController = {
     } catch (error) {
       console.error('Error in createSchedule:', error);
       
-      if (error.message.includes('không tồn tại')) {
+      // Enhanced error handling for validation errors
+      if (error.message.includes('không tồn tại') || error.message.includes('không hoạt động')) {
         return res.status(400).json(ResponseHandler.error(error.message));
       }
-      if (error.message.includes('trùng lặp')) {
+      if (error.message.includes('trùng lặp') || error.message.includes('đã có lịch trình') || 
+          error.message.includes('không thể di chuyển') || error.message.includes('cần nghỉ')) {
         return res.status(409).json(ResponseHandler.error(error.message));
+      }
+      if (error.message.includes('trong quá khứ') || error.message.includes('không hợp lệ')) {
+        return res.status(400).json(ResponseHandler.error(error.message));
+      }
+      if (error.message.includes('thời gian')) {
+        return res.status(400).json(ResponseHandler.error(error.message));
       }
       
       res.status(500).json(ResponseHandler.error(error.message || 'Có lỗi xảy ra khi tạo lịch trình'));
@@ -117,7 +125,14 @@ const scheduleController = {
       }
 
       const result = await scheduleService.bulkCreateSchedules(bulkData);
-      res.status(201).json(ResponseHandler.created(result, 'Tạo lịch trình từ pattern thành công'));
+      
+      // Handle partial success with some failures
+      let message = 'Tạo lịch trình từ pattern thành công';
+      if (result.failed > 0) {
+        message = `Tạo thành công ${result.created}/${result.summary.totalAttempted} lịch trình. ${result.failed} lịch trình bị lỗi validation.`;
+      }
+      
+      res.status(201).json(ResponseHandler.created(result, message));
     } catch (error) {
       console.error('Error in bulkCreateSchedules:', error);
       
@@ -171,11 +186,19 @@ const scheduleController = {
         return res.status(error.statusCode).json(ResponseHandler.error(error.message));
       }
       
-      if (error.message.includes('không tồn tại')) {
+      // Enhanced error handling for validation errors (same as createSchedule)
+      if (error.message.includes('không tồn tại') || error.message.includes('không hoạt động')) {
         return res.status(400).json(ResponseHandler.error(error.message));
       }
-      if (error.message.includes('trùng lặp')) {
+      if (error.message.includes('trùng lặp') || error.message.includes('đã có lịch trình') || 
+          error.message.includes('không thể di chuyển') || error.message.includes('cần nghỉ')) {
         return res.status(409).json(ResponseHandler.error(error.message));
+      }
+      if (error.message.includes('trong quá khứ') || error.message.includes('không hợp lệ')) {
+        return res.status(400).json(ResponseHandler.error(error.message));
+      }
+      if (error.message.includes('thời gian')) {
+        return res.status(400).json(ResponseHandler.error(error.message));
       }
       
       res.status(500).json(ResponseHandler.error(error.message || 'Có lỗi xảy ra khi cập nhật lịch trình'));

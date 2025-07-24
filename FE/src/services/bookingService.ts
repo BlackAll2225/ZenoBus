@@ -7,6 +7,7 @@ import {
   UpdateBookingStatusData, 
   CancelBookingData 
 } from './types';
+import { convertVNDateToUTCString } from '../lib/dateUtils';
 
 export const bookingService = {
   getAllBookings: async (filters: BookingFilters = {}): Promise<{
@@ -22,12 +23,16 @@ export const bookingService = {
     
     if (filters.status) params.append('status', filters.status);
     if (filters.search) params.append('search', filters.search);
-    if (filters.startDate) params.append('startDate', filters.startDate);
-    if (filters.endDate) params.append('endDate', filters.endDate);
+    // Convert VN dates to UTC for API
+    if (filters.startDate) params.append('startDate', convertVNDateToUTCString(filters.startDate));
+    if (filters.endDate) params.append('endDate', convertVNDateToUTCString(filters.endDate));
     if (filters.page) params.append('page', filters.page.toString());
     if (filters.limit) params.append('limit', filters.limit.toString());
     if (filters.sortBy) params.append('sortBy', filters.sortBy);
     if (filters.sortOrder) params.append('sortOrder', filters.sortOrder);
+
+    console.log('Original booking filters:', filters);
+    console.log('Converted API params:', params.toString());
 
     const response = await adminApi.get(`/admin/bookings?${params.toString()}`);
     return response.data.data;
@@ -38,8 +43,12 @@ export const bookingService = {
     
     if (filters.status) params.append('status', filters.status);
     if (filters.search) params.append('search', filters.search);
-    if (filters.startDate) params.append('startDate', filters.startDate);
-    if (filters.endDate) params.append('endDate', filters.endDate);
+    // Convert VN dates to UTC for API
+    if (filters.startDate) params.append('startDate', convertVNDateToUTCString(filters.startDate));
+    if (filters.endDate) params.append('endDate', convertVNDateToUTCString(filters.endDate));
+
+    console.log('Original booking stats filters:', filters);
+    console.log('Converted API params:', params.toString());
 
     const response = await adminApi.get(`/admin/bookings/stats?${params.toString()}`);
     return response.data.data;

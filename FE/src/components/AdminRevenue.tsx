@@ -91,14 +91,10 @@ export const AdminRevenue = () => {
 
 
   const formatCurrency = (amount: number) => {
-    if (amount >= 1000000000) {
-      return `${(amount / 1000000000).toFixed(1)}B₫`;
-    } else if (amount >= 1000000) {
-      return `${(amount / 1000000).toFixed(1)}M₫`;
-    } else if (amount >= 1000) {
-      return `${(amount / 1000).toFixed(0)}K₫`;
-    }
-    return `${amount.toLocaleString()}₫`;
+    return new Intl.NumberFormat('vi-VN', {
+      style: 'currency',
+      currency: 'VND'
+    }).format(amount);
   };
 
   // Prepare chart data from API
@@ -178,7 +174,7 @@ export const AdminRevenue = () => {
               <div>
                 <p className="text-sm font-medium text-green-700">Tổng Doanh Thu</p>
                 <p className="text-3xl font-bold text-green-800">
-                  {dashboardStats ? formatCurrency(dashboardStats.bookings.totalRevenue) : '0₫'}
+                  {dashboardStats ? formatCurrency(dashboardStats.bookings.totalRevenue) : formatCurrency(0)}
                 </p>
               </div>
               <div className="p-3 bg-green-500 rounded-full">

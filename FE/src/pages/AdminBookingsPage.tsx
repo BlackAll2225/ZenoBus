@@ -17,6 +17,8 @@ import { useToast } from '@/hooks/use-toast';
 import { bookingService } from '@/services/bookingService';
 import { BookingEntity, BookingStats, BookingFilters, UpdateBookingStatusData, CancelBookingData } from '@/services/types';
 import { cn } from '@/lib/utils';
+import { formatUTCToVNTime } from '@/lib/dateUtils';
+
 
 const AdminBookingsPage: React.FC = () => {
   const [bookings, setBookings] = useState<BookingEntity[]>([]);
@@ -149,9 +151,9 @@ const AdminBookingsPage: React.FC = () => {
     return <Badge variant={config.variant}>{config.label}</Badge>;
   };
 
-  // Format date
-  const formatDate = (dateString: string) => {
-    return format(new Date(dateString), 'dd/MM/yyyy HH:mm', { locale: vi });
+  // Format date - convert UTC to VN time for display
+  const formatDate = (utcDateString: string) => {
+    return formatUTCToVNTime(utcDateString, 'dd/MM/yyyy HH:mm');
   };
 
   // Format price
@@ -451,6 +453,15 @@ const AdminBookingsPage: React.FC = () => {
                     </TableHead>
                     <TableHead 
                       className="cursor-pointer hover:bg-gray-50"
+                      onClick={() => handleSort('totalPrice')}
+                    >
+                      <div className="flex items-center gap-1">
+                        Ngày đặt
+                        {getSortIcon('totalPrice')}
+                      </div>
+                    </TableHead>
+                    <TableHead 
+                      className="cursor-pointer hover:bg-gray-50"
                       onClick={() => handleSort('status')}
                     >
                       <div className="flex items-center gap-1">
@@ -487,13 +498,16 @@ const AdminBookingsPage: React.FC = () => {
                           <div className="font-medium">
                             {formatDate(booking.schedule.departureTime)}
                           </div>
-                          <div className="text-sm text-muted-foreground">
-                            {formatDate(booking.bookedAt)}
-                          </div>
+                         
                         </div>
                       </TableCell>
                       <TableCell className="font-medium">
                         {formatPrice(booking.totalPrice)}
+                      </TableCell>
+                      <TableCell>
+                      <div className="text-sm text-muted-foreground">
+                          {format(new Date(booking.bookedAt), 'dd/MM/yyyy HH:mm')}
+                          </div>
                       </TableCell>
                       <TableCell>
                         {getStatusBadge(booking.status)}
@@ -592,7 +606,7 @@ const AdminBookingsPage: React.FC = () => {
                     </div>
                     <div>
                       <h3 className="font-semibold text-gray-900">Trạng thái vé xe</h3>
-                      <p className="text-sm text-gray-600">Cập nhật lần cuối: {formatDate(selectedBooking.bookedAt)}</p>
+                      <p className="text-sm text-gray-600">Cập nhật lần cuối: {format(new Date(selectedBooking.bookedAt), 'dd/MM/yyyy HH:mm')}</p>
                     </div>
                   </div>
                   <div className="text-right">
@@ -740,12 +754,12 @@ const AdminBookingsPage: React.FC = () => {
                     <div className="p-4 bg-orange-50 rounded-lg">
                       <div className="text-xs text-gray-500 uppercase tracking-wide mb-1">Phương thức thanh toán</div>
                       <div className="font-semibold text-gray-900">
-                        {selectedBooking.paymentMethod || 'Chưa thanh toán'}
+                        {selectedBooking.paymentMethod.toUpperCase() || 'Chưa thanh toán'}
                       </div>
                     </div>
                     <div className="p-4 bg-orange-50 rounded-lg">
                       <div className="text-xs text-gray-500 uppercase tracking-wide mb-1">Ngày đặt vé</div>
-                      <div className="font-semibold text-gray-900">{formatDate(selectedBooking.bookedAt)}</div>
+                      <div className="font-semibold text-gray-900">{format(new Date(selectedBooking.bookedAt), 'dd/MM/yyyy HH:mm')}</div>
                     </div>
                   </div>
                 </CardContent>

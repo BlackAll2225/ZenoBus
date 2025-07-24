@@ -40,28 +40,28 @@ const scheduleService = {
       }
       
       if (filters.departureDate) {
-        // Convert VN date range to UTC for database query
+        // Use UTC date range directly (no timezone conversion)
         const startOfDay = new Date(filters.departureDate);
         const endOfDay = new Date(filters.departureDate);
         endOfDay.setHours(23, 59, 59, 999);
         
         whereClause.departureTime = {
           [Op.between]: [
-            new Date(startOfDay.getTime() - (7 * 60 * 60 * 1000)), // Convert VN to UTC
-            new Date(endOfDay.getTime() - (7 * 60 * 60 * 1000))    // Convert VN to UTC
+            startOfDay, // Use UTC directly
+            endOfDay    // Use UTC directly
           ]
         };
       }
       
       if (filters.startDate && filters.endDate) {
-        // Convert VN date range to UTC for database query
+        // Use UTC date range directly (no timezone conversion)
         const startDate = new Date(filters.startDate);
         const endDate = new Date(filters.endDate);
         
         whereClause.departureTime = {
           [Op.between]: [
-            new Date(startDate.getTime() - (7 * 60 * 60 * 1000)), // Convert VN to UTC
-            new Date(endDate.getTime() - (7 * 60 * 60 * 1000))    // Convert VN to UTC
+            startDate, // Use UTC directly
+            endDate    // Use UTC directly
           ]
         };
       }
@@ -284,28 +284,22 @@ const scheduleService = {
       // Validate foreign keys
       await this.validateScheduleData(scheduleData);
       
-      // Convert departureTime to proper Date object
+      // Convert departureTime to proper Date object (keep original logic)
       let departureTime = scheduleData.departureTime;
       console.log('Original departureTime:', departureTime, typeof departureTime);
       
       if (typeof departureTime === 'string') {
-        // Parse ISO format (2025-07-31T08:00:00) to Date in UTC
+        // Parse datetime as UTC directly (no timezone conversion)
         try {
           // Extract date and time parts
           const match = departureTime.match(/^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2}):(\d{2})/);
           if (match) {
             const [, year, month, day, hour, minute, second] = match;
-            // Create date in UTC timezone - subtract 7 hours from local VN time
-            departureTime = new Date(Date.UTC(parseInt(year), parseInt(month) - 1, parseInt(day), parseInt(hour) - 7, parseInt(minute), parseInt(second)));
+            // Create date in UTC timezone directly
+            departureTime = new Date(Date.UTC(parseInt(year), parseInt(month) - 1, parseInt(day), parseInt(hour), parseInt(minute), parseInt(second)));
           } else {
-            // Try to parse as ISO string, if no timezone assume VN time and convert to UTC
-            const tempDate = new Date(departureTime);
-            if (!departureTime.includes('Z') && !departureTime.includes('+') && !departureTime.includes('-', 10)) {
-              // No timezone info, assume VN time (UTC+7) and convert to UTC
-              departureTime = new Date(tempDate.getTime() - (7 * 60 * 60 * 1000));
-            } else {
-              departureTime = tempDate;
-            }
+            // Parse as UTC directly
+            departureTime = new Date(departureTime);
           }
         } catch (error) {
           console.error('Error parsing date:', error);
@@ -330,28 +324,41 @@ const scheduleService = {
       
       const sqlServerDateTime = `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
       console.log('SQL Server formatted:', sqlServerDateTime);
+
+      // Run validation checks AFTER datetime formatting to avoid SQL issues
+      // Update scheduleData with converted departureTime for validation
+      const validationData = { ...scheduleData, departureTime };
+
+      // Validate that departure time is not in the past
+      this.validateFutureTime(departureTime);
+
+      // Validate time overlap (bus/driver conflicts)
+      await this.validateTimeOverlap(validationData);
+
+      // Validate location transition and travel time
+      await this.validateLocationTransition(validationData);
       
-      // Use raw SQL with proper datetime format
-      const [result] = await sequelize.query(`
-        INSERT INTO schedules (bus_id, route_id, driver_id, departure_time, price, status, pattern_id, is_auto_generated, created_at)
-        VALUES (?, ?, ?, CONVERT(DATETIME, ?), ?, ?, ?, ?, GETDATE());
-        SELECT SCOPE_IDENTITY() as id;
-      `, {
-        replacements: [
-          scheduleData.busId,
-          scheduleData.routeId,
-          scheduleData.driverId,
-          sqlServerDateTime,
-          scheduleData.price,
-          scheduleData.status || 'scheduled',
-          scheduleData.patternId || null,
-          scheduleData.patternId ? 1 : 0
-        ],
-        type: sequelize.QueryTypes.INSERT
-      });
+      // Use raw SQL with proper datetime format (like updateSchedule)
+      const { sql, poolPromise } = require('../config/db');
+      const pool = await poolPromise;
+      
+      const result = await pool.request()
+        .input('busId', sql.Int, scheduleData.busId)
+        .input('routeId', sql.Int, scheduleData.routeId)
+        .input('driverId', sql.Int, scheduleData.driverId)
+        .input('departureTime', sql.DateTime, departureTime)
+        .input('price', sql.Decimal(10, 2), scheduleData.price)
+        .input('status', sql.VarChar(50), scheduleData.status || 'scheduled')
+        .input('patternId', sql.Int, scheduleData.patternId || null)
+        .input('isAutoGenerated', sql.Bit, scheduleData.patternId ? 1 : 0)
+        .query(`
+          INSERT INTO schedules (bus_id, route_id, driver_id, departure_time, price, status, pattern_id, is_auto_generated, created_at)
+          OUTPUT INSERTED.id
+          VALUES (@busId, @routeId, @driverId, @departureTime, @price, @status, @patternId, @isAutoGenerated, GETDATE())
+        `);
       
       // Get the created schedule
-      const scheduleId = result[0].id;
+      const scheduleId = result.recordset[0].id;
       const schedule = await Schedule.findByPk(scheduleId);
       
       // Create seats for the schedule
@@ -439,40 +446,55 @@ const scheduleService = {
       
       // Create schedules
       const createdSchedules = [];
+      const failedSchedules = [];
       const price = bulkData.priceOverride || pattern.basePrice;
       
       for (const date of dates) {
         for (const time of departureTimes) {
-          const [hours, minutes] = time.split(':').map(Number);
+          try {
+                      const [hours, minutes] = time.split(':').map(Number);
           const departureTime = new Date(date);
-          // Set hours in VN time, then convert to UTC
+          // Set hours in UTC directly
           departureTime.setHours(hours, minutes, 0, 0);
-          // Convert VN time to UTC by subtracting 7 hours
-          const utcDepartureTime = new Date(departureTime.getTime() - (7 * 60 * 60 * 1000));
-          
-          const scheduleData = {
-            busId: assignedBusId,
-            routeId: pattern.routeId,
-            driverId: assignedDriverId,
-            departureTime: utcDepartureTime,
-            price: price,
-            status: 'scheduled',
-            patternId: pattern.id
-          };
-          
-          const schedule = await this.createSchedule(scheduleData);
-          createdSchedules.push(schedule);
+          // Use UTC time directly
+          const utcDepartureTime = departureTime;
+            
+            const scheduleData = {
+              busId: assignedBusId,
+              routeId: pattern.routeId,
+              driverId: assignedDriverId,
+              departureTime: utcDepartureTime,
+              price: price,
+              status: 'scheduled',
+              patternId: pattern.id
+            };
+            
+            const schedule = await this.createSchedule(scheduleData);
+            createdSchedules.push(schedule);
+          } catch (error) {
+            // Log failed schedule creation but continue with others
+            const formattedDate = date.toLocaleDateString('vi-VN');
+            failedSchedules.push({
+              date: formattedDate,
+              time: time,
+              error: error.message
+            });
+            console.warn(`Failed to create schedule for ${formattedDate} ${time}:`, error.message);
+          }
         }
       }
       
       return {
         created: createdSchedules.length,
+        failed: failedSchedules.length,
         schedules: createdSchedules,
+        failedSchedules: failedSchedules,
         summary: {
           patternName: pattern.name,
           dateRange: `${bulkData.startDate} - ${bulkData.endDate}`,
           totalDays: dates.length,
-          schedulesPerDay: departureTimes.length
+          schedulesPerDay: departureTimes.length,
+          totalAttempted: dates.length * departureTimes.length
         }
       };
     } catch (error) {
@@ -521,8 +543,8 @@ const scheduleService = {
             const match = departureTime.match(/^(\d{4})-(\d{2})-(\d{2}) (\d{2}):(\d{2}):(\d{2})/);
             if (match) {
               const [, year, month, day, hour, minute, second] = match;
-              // Create date in UTC timezone
-              departureTime = new Date(Date.UTC(parseInt(year), parseInt(month) - 1, parseInt(day), parseInt(hour), parseInt(minute), parseInt(second)));
+                          // Create date in UTC timezone directly
+            departureTime = new Date(Date.UTC(parseInt(year), parseInt(month) - 1, parseInt(day), parseInt(hour), parseInt(minute), parseInt(second)));
             } else {
               // Try direct parsing
               departureTime = new Date(departureTime);
@@ -535,6 +557,23 @@ const scheduleService = {
         
         console.log('Converted departureTime for update:', departureTime);
         updateData.departureTime = departureTime;
+        
+        // Validate that departure time is not in the past
+        this.validateFutureTime(departureTime);
+      }
+
+      // Create validation data combining existing schedule data with updates
+      const validationData = {
+        busId: updateData.busId || existingSchedule.busId,
+        routeId: updateData.routeId || existingSchedule.routeId,
+        driverId: updateData.driverId || existingSchedule.driverId,
+        departureTime: updateData.departureTime || existingSchedule.departureTime
+      };
+
+      // Validate time overlap and location transition if any relevant fields are being updated
+      if (updateData.busId || updateData.routeId || updateData.driverId || updateData.departureTime) {
+        await this.validateTimeOverlap(validationData, id); // Exclude current schedule from conflict check
+        await this.validateLocationTransition(validationData, id);
       }
       
       // Update schedule using raw SQL if departureTime is involved
@@ -635,15 +674,15 @@ const scheduleService = {
   async validateScheduleData(scheduleData) {
     if (scheduleData.busId) {
       const bus = await Bus.findByPk(scheduleData.busId);
-      if (!bus ) {
+      if (!bus || !bus.isActive) {
         throw new Error('Xe bus không tồn tại hoặc không hoạt động');
       }
     }
     
     if (scheduleData.routeId) {
       const route = await Route.findByPk(scheduleData.routeId);
-      if (!route) {
-        throw new Error('Tuyến đường không tồn tại');
+      if (!route || !route.isActive) {
+        throw new Error('Tuyến đường không tồn tại hoặc không hoạt động');
       }
     }
     
@@ -681,6 +720,280 @@ const scheduleService = {
     }
     
     await Seat.bulkCreate(seatData);
+  },
+
+  // Helper: Calculate arrival time based on departure time and estimated time
+  calculateArrivalTime(departureTime, estimatedTimeMinutes) {
+    if (!departureTime || !estimatedTimeMinutes) {
+      return null;
+    }
+    
+    const departure = new Date(departureTime);
+    const arrival = new Date(departure.getTime() + (estimatedTimeMinutes * 60 * 1000));
+    return arrival;
+  },
+
+  // Helper: Validate time overlap between schedules
+  async validateTimeOverlap(scheduleData, excludeScheduleId = null) {
+    try {
+      const { sql, poolPromise } = require('../config/db');
+      const pool = await poolPromise;
+
+      // Get route info to calculate arrival time
+      const routeResult = await pool.request()
+        .input('routeId', sql.Int, scheduleData.routeId)
+        .query('SELECT estimated_time FROM routes WHERE id = @routeId AND is_active = 1');
+
+      if (routeResult.recordset.length === 0) {
+        throw new Error('Không thể xác định thời gian di chuyển của tuyến đường');
+      }
+
+      const estimatedTime = routeResult.recordset[0].estimated_time;
+      if (!estimatedTime) {
+        throw new Error('Tuyến đường chưa có thời gian di chuyển ước tính');
+      }
+
+      // Calculate arrival time for new schedule
+      const newDepartureTime = new Date(scheduleData.departureTime);
+      const newArrivalTime = this.calculateArrivalTime(newDepartureTime, estimatedTime);
+
+      if (!newArrivalTime) {
+        throw new Error('Không thể tính toán thời gian đến');
+      }
+
+      // Check for bus conflicts using raw SQL
+      let busQuery = `
+        SELECT s.departure_time, r.estimated_time 
+        FROM schedules s 
+        JOIN routes r ON s.route_id = r.id 
+        WHERE s.bus_id = @busId 
+        AND s.status IN ('scheduled', 'in_progress')
+      `;
+      
+      if (excludeScheduleId) {
+        busQuery += ' AND s.id != @excludeScheduleId';
+      }
+
+      const busRequest = pool.request()
+        .input('busId', sql.Int, scheduleData.busId);
+      
+      if (excludeScheduleId) {
+        busRequest.input('excludeScheduleId', sql.Int, excludeScheduleId);
+      }
+
+      const busConflicts = await busRequest.query(busQuery);
+
+      // Check for driver conflicts using raw SQL
+      let driverQuery = `
+        SELECT s.departure_time, r.estimated_time 
+        FROM schedules s 
+        JOIN routes r ON s.route_id = r.id 
+        WHERE s.driver_id = @driverId 
+        AND s.status IN ('scheduled', 'in_progress')
+      `;
+      
+      if (excludeScheduleId) {
+        driverQuery += ' AND s.id != @excludeScheduleId';
+      }
+
+      const driverRequest = pool.request()
+        .input('driverId', sql.Int, scheduleData.driverId);
+      
+      if (excludeScheduleId) {
+        driverRequest.input('excludeScheduleId', sql.Int, excludeScheduleId);
+      }
+
+      const driverConflicts = await driverRequest.query(driverQuery);
+
+      // Check bus time overlaps
+      for (const conflict of busConflicts.recordset) {
+        const conflictDeparture = new Date(conflict.departure_time);
+        const conflictArrival = this.calculateArrivalTime(conflictDeparture, conflict.estimated_time);
+
+        if (conflictArrival && this.isTimeOverlap(newDepartureTime, newArrivalTime, conflictDeparture, conflictArrival)) {
+          throw new Error(`Xe bus đã có lịch trình từ ${conflictDeparture.toLocaleString('vi-VN')} đến ${conflictArrival.toLocaleString('vi-VN')}`);
+        }
+      }
+
+      // Check driver time overlaps
+      for (const conflict of driverConflicts.recordset) {
+        const conflictDeparture = new Date(conflict.departure_time);
+        const conflictArrival = this.calculateArrivalTime(conflictDeparture, conflict.estimated_time);
+
+        if (conflictArrival && this.isTimeOverlap(newDepartureTime, newArrivalTime, conflictDeparture, conflictArrival)) {
+          throw new Error(`Tài xế đã có lịch trình từ ${conflictDeparture.toLocaleString('vi-VN')} đến ${conflictArrival.toLocaleString('vi-VN')}`);
+        }
+      }
+
+      return true;
+    } catch (error) {
+      throw error;
+    }
+  },
+
+  // Helper: Check if two time ranges overlap
+  isTimeOverlap(start1, end1, start2, end2) {
+    return start1 < end2 && end1 > start2;
+  },
+
+  // Helper: Validate location transition and travel time
+  async validateLocationTransition(scheduleData, excludeScheduleId = null) {
+    try {
+      const { sql, poolPromise } = require('../config/db');
+      const pool = await poolPromise;
+
+      // Get route info for the new schedule using raw SQL
+      const newRouteResult = await pool.request()
+        .input('routeId', sql.Int, scheduleData.routeId)
+        .query(`
+          SELECT r.id, r.departure_province_id, r.arrival_province_id, r.estimated_time,
+                 dp.name as departure_province_name, ap.name as arrival_province_name
+          FROM routes r
+          JOIN provinces dp ON r.departure_province_id = dp.id
+          JOIN provinces ap ON r.arrival_province_id = ap.id
+          WHERE r.id = @routeId AND r.is_active = 1
+        `);
+
+      if (newRouteResult.recordset.length === 0) {
+        throw new Error('Tuyến đường không tồn tại');
+      }
+
+      const newRoute = newRouteResult.recordset[0];
+      const newDepartureTime = new Date(scheduleData.departureTime);
+
+      // Find the most recent schedule for the same bus and driver before the new departure time using raw SQL
+      let previousQuery = `
+        SELECT TOP 2 s.id, s.bus_id, s.driver_id, s.departure_time,
+               r.estimated_time, r.arrival_province_id
+        FROM schedules s
+        JOIN routes r ON s.route_id = r.id
+        WHERE (s.bus_id = @busId OR s.driver_id = @driverId)
+        AND s.departure_time < @departureTime
+        AND s.status IN ('scheduled', 'in_progress')
+      `;
+
+      if (excludeScheduleId) {
+        previousQuery += ' AND s.id != @excludeScheduleId';
+      }
+
+      previousQuery += ' ORDER BY s.departure_time DESC';
+
+      const previousRequest = pool.request()
+        .input('busId', sql.Int, scheduleData.busId)
+        .input('driverId', sql.Int, scheduleData.driverId)
+        .input('departureTime', sql.DateTime, newDepartureTime);
+
+      if (excludeScheduleId) {
+        previousRequest.input('excludeScheduleId', sql.Int, excludeScheduleId);
+      }
+
+      const previousResult = await previousRequest.query(previousQuery);
+      const previousSchedules = previousResult.recordset;
+
+      // Group by bus and driver
+      const busPreviousSchedule = previousSchedules.find(s => s.bus_id === scheduleData.busId);
+      const driverPreviousSchedule = previousSchedules.find(s => s.driver_id === scheduleData.driverId);
+
+      // Validate bus location transition
+      if (busPreviousSchedule) {
+        await this.validateSingleLocationTransitionRaw(
+          busPreviousSchedule,
+          newRoute,
+          newDepartureTime,
+          'xe bus'
+        );
+      }
+
+      // Validate driver location transition
+      if (driverPreviousSchedule && driverPreviousSchedule.id !== busPreviousSchedule?.id) {
+        await this.validateSingleLocationTransitionRaw(
+          driverPreviousSchedule,
+          newRoute,
+          newDepartureTime,
+          'tài xế'
+        );
+      }
+
+      return true;
+    } catch (error) {
+      throw error;
+    }
+  },
+
+  // Helper: Validate single location transition using raw SQL
+  async validateSingleLocationTransitionRaw(previousSchedule, newRoute, newDepartureTime, resourceType) {
+    const previousArrivalTime = this.calculateArrivalTime(
+      new Date(previousSchedule.departure_time),
+      previousSchedule.estimated_time
+    );
+
+    if (!previousArrivalTime) {
+      return; // Skip validation if can't calculate previous arrival time
+    }
+
+    // Check if there's enough time between arrival and next departure (minimum 30 minutes)
+    const minimumRestTime = 30 * 60 * 1000; // 30 minutes in milliseconds
+    const timeBetween = newDepartureTime.getTime() - previousArrivalTime.getTime();
+
+    if (timeBetween < minimumRestTime) {
+      throw new Error(`${resourceType} cần nghỉ ít nhất 30 phút giữa các chuyến. Thời gian nghỉ hiện tại: ${Math.round(timeBetween / (60 * 1000))} phút`);
+    }
+
+    // Check location transition
+    const previousArrivalProvinceId = previousSchedule.arrival_province_id;
+    const newDepartureProvinceId = newRoute.departure_province_id;
+
+    if (previousArrivalProvinceId !== newDepartureProvinceId) {
+      // Different provinces - need to check travel time using raw SQL
+      const { sql, poolPromise } = require('../config/db');
+      const pool = await poolPromise;
+
+      const transferRouteResult = await pool.request()
+        .input('depProvinceId', sql.Int, previousArrivalProvinceId)
+        .input('arrProvinceId', sql.Int, newDepartureProvinceId)
+        .query(`
+          SELECT estimated_time 
+          FROM routes 
+          WHERE departure_province_id = @depProvinceId 
+          AND arrival_province_id = @arrProvinceId 
+          AND is_active = 1
+        `);
+
+      let requiredTravelTime = 5 * 60 * 60 * 1000; // Default 5 hours
+      if (transferRouteResult.recordset.length > 0 && transferRouteResult.recordset[0].estimated_time) {
+        requiredTravelTime = transferRouteResult.recordset[0].estimated_time * 60 * 1000; // Convert minutes to milliseconds
+      }
+
+      if (timeBetween < requiredTravelTime) {
+        const provinceResult = await pool.request()
+          .input('prevProvinceId', sql.Int, previousArrivalProvinceId)
+          .input('newProvinceId', sql.Int, newDepartureProvinceId)
+          .query(`
+            SELECT 
+              (SELECT name FROM provinces WHERE id = @prevProvinceId) as prev_province_name,
+              (SELECT name FROM provinces WHERE id = @newProvinceId) as new_province_name
+          `);
+
+        const provinceNames = provinceResult.recordset[0];
+        
+        throw new Error(
+          `${resourceType} không thể di chuyển từ ${provinceNames.prev_province_name} đến ${provinceNames.new_province_name} trong ${Math.round(timeBetween / (60 * 60 * 1000))} giờ. ` +
+          `Cần ít nhất ${Math.round(requiredTravelTime / (60 * 60 * 1000))} giờ`
+        );
+      }
+    }
+  },
+
+  // Helper: Validate that departure time is not in the past
+  validateFutureTime(departureTime) {
+    const now = new Date();
+    const departure = new Date(departureTime);
+    
+    if (departure <= now) {
+      throw new Error('Không thể tạo chuyến đi trong quá khứ');
+    }
+    
+    return true;
   }
 };
 

@@ -10,6 +10,7 @@ import { format } from 'date-fns';
 import { vi } from 'date-fns/locale';
 import { routeService, Trip, SearchTripsResponse } from '@/services/routeService';
 import { useToast } from '@/hooks/use-toast';
+import { formatTimeFromUTC, formatDateFromUTC } from '@/lib/dateUtils';
 
 interface TripSearchProps {
   departureProvinceId?: number;
@@ -54,22 +55,14 @@ const TripSearch = ({ departureProvinceId, arrivalProvinceId, departureDate }: T
     }
   };
 
-  const formatTime = (dateString: string) => {
-    try {
-      const date = new Date(dateString);
-      return format(date, 'HH:mm', { locale: vi });
-    } catch {
-      return 'N/A';
-    }
+  const formatTime = (utcDateString: string) => {
+    // Convert UTC datetime from API to VN time for display
+    return formatTimeFromUTC(utcDateString);
   };
 
-  const formatDate = (dateString: string) => {
-    try {
-      const date = new Date(dateString);
-      return format(date, 'EEEE, dd/MM/yyyy', { locale: vi });
-    } catch {
-      return 'N/A';
-    }
+  const formatDate = (utcDateString: string) => {
+    // Convert UTC datetime from API to VN time for display
+    return formatDateFromUTC(utcDateString);
   };
 
   const formatPrice = (price: number) => {

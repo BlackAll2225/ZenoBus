@@ -2,7 +2,8 @@ const routeService = require('../services/routeService');
 
 const getAllRoutes = async (req, res) => {
   try {
-    const routes = await routeService.getAllRoutes();
+    const includeInactive = req.query.include_inactive === 'true';
+    const routes = await routeService.getAllRoutes(includeInactive);
     res.success(routes, 'Routes retrieved successfully');
   } catch (error) {
     res.error(error.message, 500);
@@ -48,6 +49,29 @@ const updateRoute = async (req, res) => {
       res.error(error.message, 404);
     } else if (error.message.includes('not found') || error.message.includes('already exists')) {
       res.error(error.message, 400);
+    } else {
+      res.error(error.message, 500);
+    }
+  }
+};
+
+const toggleRouteStatus = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const result = await routeService.toggleRouteStatus(id);
+    
+    // Tạo message chi tiết dựa trên kết quả
+    let message = 'Route status toggled successfully';
+    if (result.statusChanged === 'disabled' && result.affectedPatternsCount > 0) {
+      message += `. ${result.affectedPatternsCount} schedule pattern(s) have also been disabled.`;
+    } else if (result.statusChanged === 'enabled') {
+      message += '. Schedule patterns remain unchanged and need to be enabled manually if required.';
+    }
+    
+    res.success(result, message);
+  } catch (error) {
+    if (error.message === 'Route not found') {
+      res.error(error.message, 404);
     } else {
       res.error(error.message, 500);
     }
@@ -148,6 +172,7 @@ module.exports = {
   createRoute,
   updateRoute,
   deleteRoute,
+  toggleRouteStatus,
   getRoutesByProvince,
   getAvailableDestinations,
   searchTrips,

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { ArrowLeft, Loader2, Bus, MapPin, Clock, Users, Car, Phone, User } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -8,6 +8,7 @@ import { format } from 'date-fns';
 import { vi } from 'date-fns/locale';
 import { routeService, Trip } from '@/services/routeService';
 import { useToast } from '@/hooks/use-toast';
+import { formatTimeFromUTC, formatDateFromUTC } from '@/lib/dateUtils';
 
 const BookingPage = () => {
   const { scheduleId } = useParams<{ scheduleId: string }>();
@@ -51,7 +52,8 @@ const BookingPage = () => {
             id: 2,
             name: 'Đà Lạt',
             code: 'DL'
-          }
+          },
+          isActive: true,
         },
         bus: {
           id: 1,
@@ -85,22 +87,14 @@ const BookingPage = () => {
     }
   };
 
-  const formatTime = (dateString: string) => {
-    try {
-      const date = new Date(dateString);
-      return format(date, 'HH:mm', { locale: vi });
-    } catch {
-      return 'N/A';
-    }
+  const formatTime = (utcDateString: string) => {
+    // Convert UTC datetime from API to VN time for display
+    return formatTimeFromUTC(utcDateString);
   };
 
-  const formatDate = (dateString: string) => {
-    try {
-      const date = new Date(dateString);
-      return format(date, 'EEEE, dd/MM/yyyy', { locale: vi });
-    } catch {
-      return 'N/A';
-    }
+  const formatDate = (utcDateString: string) => {
+    // Convert UTC datetime from API to VN time for display
+    return formatDateFromUTC(utcDateString);
   };
 
   const formatPrice = (price: number) => {

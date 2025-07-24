@@ -5,10 +5,17 @@ const Schedule = require('../models/ScheduleSequelizeModel');
 const Bus = require('../models/BusModel');
 const BusType = require('../models/BusTypeModel');
 const Driver = require('../models/DriverModel');
+const SchedulePattern = require('../models/SchedulePatternModel');
 
-const getAllRoutes = async () => {
+const getAllRoutes = async (includeInactive = false) => {
   try {
+    const whereCondition = {};
+    if (!includeInactive) {
+      whereCondition.isActive = true;
+    }
+
     const routes = await Route.findAll({
+      where: whereCondition,
       include: [
         {
           model: Province,
@@ -22,7 +29,9 @@ const getAllRoutes = async () => {
         }
       ]
     });
-    return routes;
+    
+    // Chuyển đổi tất cả routes thành plain objects
+    return routes.map(route => route.toJSON ? route.toJSON() : route);
   } catch (error) {
     throw new Error(`Error fetching routes: ${error.message}`);
   }
@@ -49,7 +58,7 @@ const getRouteById = async (id) => {
       throw new Error('Route not found');
     }
     
-    return route;
+    return route.toJSON ? route.toJSON() : route;
   } catch (error) {
     throw new Error(`Error fetching route: ${error.message}`);
   }
@@ -87,10 +96,12 @@ const createRoute = async (routeData) => {
       departureProvinceId,
       arrivalProvinceId,
       distanceKm,
-      estimatedTime
+      estimatedTime,
+      isActive: true
     });
     
-    return await getRouteById(route.id);
+    const newRoute = await getRouteById(route.id);
+    return newRoute.toJSON ? newRoute.toJSON() : newRoute;
   } catch (error) {
     throw new Error(`Error creating route: ${error.message}`);
   }
@@ -140,14 +151,64 @@ const updateRoute = async (id, routeData) => {
       departureProvinceId: departureProvinceId || route.departureProvinceId,
       arrivalProvinceId: arrivalProvinceId || route.arrivalProvinceId,
       distanceKm: distanceKm !== undefined ? distanceKm : route.distanceKm,
-      estimatedTime: estimatedTime !== undefined ? estimatedTime : route.estimatedTime
+      estimatedTime: estimatedTime !== undefined ? estimatedTime : route.estimatedTime,
+      isActive: routeData.isActive !== undefined ? routeData.isActive : route.isActive
     });
     
-    return await getRouteById(id);
+    const updatedRoute = await getRouteById(id);
+    return updatedRoute.toJSON ? updatedRoute.toJSON() : updatedRoute;
   } catch (error) {
     throw new Error(`Error updating route: ${error.message}`);
   }
 };
+
+const toggleRouteStatus = async (id) => {
+  try {
+    const route = await Route.findByPk(id);
+    
+    if (!route) {
+      throw new Error('Route not found');
+    }
+    
+    const newStatus = !route.isActive;
+    let affectedPatternsCount = 0;
+    
+    // Cập nhật trạng thái route
+    route.isActive = newStatus;
+    await route.save();
+    
+    // Nếu disable route, thì cũng disable tất cả schedule patterns liên quan
+    if (!newStatus) {
+      const updateResult = await SchedulePattern.update(
+        { isActive: false },
+        { 
+          where: { 
+            routeId: id,
+            isActive: true // Chỉ update những pattern đang active
+          } 
+        }
+      );
+      affectedPatternsCount = updateResult[0]; // Số lượng records đã được update
+    }
+    // Nếu enable route, không tự động enable lại schedule patterns
+    // Admin sẽ phải tự quyết định enable pattern nào
+    
+    const updatedRoute = await getRouteById(id);
+    
+    // Chuyển đổi Sequelize instance thành plain object để tránh circular references
+    const plainRoute = updatedRoute.toJSON ? updatedRoute.toJSON() : updatedRoute;
+    
+    // Trả về thông tin bổ sung về số lượng patterns bị ảnh hưởng
+    return {
+      ...plainRoute,
+      affectedPatternsCount,
+      statusChanged: newStatus ? 'enabled' : 'disabled'
+    };
+  } catch (error) {
+    throw new Error(`Error toggling route status: ${error.message}`);
+  }
+};
+
 
 const deleteRoute = async (id) => {
   try {
@@ -187,7 +248,7 @@ const getRoutesByProvince = async (provinceId) => {
       ]
     });
     
-    return routes;
+    return routes.map(route => route.toJSON ? route.toJSON() : route);
   } catch (error) {
     throw new Error(`Error fetching routes by province: ${error.message}`);
   }
@@ -273,14 +334,33 @@ const searchTrips = async (departureProvinceId, arrivalProvinceId, departureDate
       throw new Error('No route found between these provinces');
     }
 
-    // Tìm tất cả schedules cho route này trong ngày được chọn
-    // Sử dụng raw SQL để tránh lỗi date conversion
+    // Convert VN date to UTC date range for accurate filtering
+    // User picks VN date (2025-01-15) but schedules are stored in UTC
+    // Need to find all trips that occur during that VN day
+    
+    // Start of VN day: 2025-01-15 00:00:00 VN = 2025-01-14 17:00:00 UTC
+    const vnStartOfDay = new Date(departureDate + 'T00:00:00');
+    const utcStartOfDay = new Date(vnStartOfDay.getTime() - (7 * 60 * 60 * 1000));
+    
+    // End of VN day: 2025-01-15 23:59:59 VN = 2025-01-15 16:59:59 UTC  
+    const vnEndOfDay = new Date(departureDate + 'T23:59:59');
+    const utcEndOfDay = new Date(vnEndOfDay.getTime() - (7 * 60 * 60 * 1000));
+
+    console.log('Search trips timezone conversion:');
+    console.log('- Input VN date:', departureDate);
+    console.log('- VN start of day:', vnStartOfDay.toISOString());
+    console.log('- UTC start of day:', utcStartOfDay.toISOString());
+    console.log('- VN end of day:', vnEndOfDay.toISOString());
+    console.log('- UTC end of day:', utcEndOfDay.toISOString());
+
+    // Tìm tất cả schedules cho route này trong UTC range
     const { sql, poolPromise } = require('../config/db');
     const pool = await poolPromise;
     
     const result = await pool.request()
       .input('routeId', sql.Int, route.id)
-      .input('departureDate', sql.Date, departureDate)
+      .input('startTime', sql.DateTime, utcStartOfDay)
+      .input('endTime', sql.DateTime, utcEndOfDay)
       .input('currentTime', sql.DateTime, new Date())
       .query(`
         SELECT 
@@ -304,7 +384,8 @@ const searchTrips = async (departureProvinceId, arrivalProvinceId, departureDate
         JOIN bus_types bt ON b.bus_type_id = bt.id
         JOIN drivers d ON s.driver_id = d.id
         WHERE s.route_id = @routeId 
-          AND CAST(s.departure_time AS DATE) = @departureDate
+          AND s.departure_time >= @startTime
+          AND s.departure_time <= @endTime
           AND s.status = 'scheduled'
           AND s.departure_time > @currentTime
         ORDER BY s.departure_time ASC
@@ -523,8 +604,9 @@ module.exports = {
   createRoute,
   updateRoute,
   deleteRoute,
+  toggleRouteStatus,
   getRoutesByProvince,
-  getAvailableDestinations,
   searchTrips,
+  getAvailableDestinations,
   getAvailableSeats
 }; 

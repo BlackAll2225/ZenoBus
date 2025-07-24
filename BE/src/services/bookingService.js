@@ -632,16 +632,16 @@ const getAllBookingsForAdmin = async ({ page, limit, filters }) => {
   
   if (filters.startDate) {
     whereConditions.push('b.booked_at >= @startDate');
-    // Convert VN date to UTC for database query
+    // Use UTC date directly (no timezone conversion)
     const startDate = new Date(filters.startDate);
-    parameters.push({ name: 'startDate', type: sql.DateTime, value: new Date(startDate.getTime() - (7 * 60 * 60 * 1000)) });
+    parameters.push({ name: 'startDate', type: sql.DateTime, value: startDate });
   }
   
   if (filters.endDate) {
     whereConditions.push('b.booked_at <= @endDate');
-    // Convert VN date to UTC for database query
+    // Use UTC date directly (no timezone conversion)
     const endDate = new Date(filters.endDate);
-    parameters.push({ name: 'endDate', type: sql.DateTime, value: new Date(endDate.getTime() - (7 * 60 * 60 * 1000)) });
+    parameters.push({ name: 'endDate', type: sql.DateTime, value: endDate });
   }
   
   if (filters.search) {
@@ -943,12 +943,12 @@ const getBookingStats = async ({ startDate, endDate }) => {
   
   if (startDate && endDate) {
     whereClause = 'WHERE booked_at BETWEEN @startDate AND @endDate';
-    // Convert VN dates to UTC for database query
+    // Use UTC dates directly (no timezone conversion)
     const start = new Date(startDate);
     const end = new Date(endDate);
     parameters.push(
-      { name: 'startDate', type: sql.DateTime, value: new Date(start.getTime() - (7 * 60 * 60 * 1000)) },
-      { name: 'endDate', type: sql.DateTime, value: new Date(end.getTime() - (7 * 60 * 60 * 1000)) }
+      { name: 'startDate', type: sql.DateTime, value: start },
+      { name: 'endDate', type: sql.DateTime, value: end }
     );
   }
   

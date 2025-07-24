@@ -38,20 +38,20 @@ class FeedbackService {
     }
     
     if (startDate) {
-      // Convert VN date to UTC for database query
+      // Use UTC date directly (no timezone conversion)
       const start = new Date(startDate);
       whereConditions.createdAt = {
         ...whereConditions.createdAt,
-        [Op.gte]: new Date(start.getTime() - (7 * 60 * 60 * 1000))
+        [Op.gte]: start
       };
     }
     
     if (endDate) {
-      // Convert VN date to UTC for database query
+      // Use UTC date directly (no timezone conversion)
       const end = new Date(endDate + ' 23:59:59');
       whereConditions.createdAt = {
         ...whereConditions.createdAt,
-        [Op.lte]: new Date(end.getTime() - (7 * 60 * 60 * 1000))
+        [Op.lte]: end
       };
     }
 

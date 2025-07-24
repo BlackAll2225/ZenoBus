@@ -14,6 +14,7 @@ import { BookingEntity } from '@/services/types';
 import BookingDetailModal from './BookingDetailModal';
 import { useToast } from '@/hooks/use-toast';
 import { User, Mail, Phone, Calendar, Edit2, Save, X } from 'lucide-react';
+import { formatShortDate, formatDateFromUTC } from '@/lib/dateUtils';
 
 const sidebarMenu = [
   { id: 'profile', label: 'Thông tin tài khoản', active: true },
@@ -246,8 +247,9 @@ export default function UserDashboard() {
     }));
   };
 
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('vi-VN');
+  const formatDate = (utcDateString: string) => {
+    // Convert UTC datetime from API to VN time for display
+    return formatShortDate(utcDateString);
   };
 
   const formatPrice = (price: number) => {

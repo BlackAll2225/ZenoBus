@@ -1,6 +1,7 @@
 import api from './api';
 import adminApi from './adminApi';
 import { ApiResponse } from './types';
+import { convertVNDateRangeToUTC } from '../lib/dateUtils';
 
 export interface Route {
   id: number;
@@ -8,6 +9,7 @@ export interface Route {
   arrivalProvinceId: number;
   distanceKm?: number;
   estimatedTime?: number;
+  isActive: boolean;
   departureProvince?: {
     id: number;
     name: string;
@@ -18,6 +20,9 @@ export interface Route {
     name: string;
     code: string;
   };
+  // Properties added when toggling route status
+  affectedPatternsCount?: number;
+  statusChanged?: 'enabled' | 'disabled';
 }
 
 export interface CreateRouteData {
@@ -135,38 +140,48 @@ export interface SeatsResponse {
 
 class RouteService {
   // Lấy tất cả tuyến đường
-  async getAllRoutes(): Promise<ApiResponse<Route[]>> {
-    const response = await api.get<ApiResponse<Route[]>>('/routes');
+  async getAllRoutes(includeInactive = false): Promise<ApiResponse<Route[]>> {
+    const response = await adminApi.get('/routes', {
+      params: {
+        include_inactive: includeInactive,
+      },
+    });
     return response.data;
   }
 
   // Lấy tuyến đường theo ID
   async getRouteById(id: number): Promise<ApiResponse<Route>> {
-    const response = await api.get<ApiResponse<Route>>(`/routes/${id}`);
+    const response = await api.get(`/routes/${id}`);
     return response.data;
   }
 
   // Tạo tuyến đường mới (yêu cầu admin token)
   async createRoute(data: CreateRouteData): Promise<ApiResponse<Route>> {
-    const response = await adminApi.post<ApiResponse<Route>>('/routes', data);
+    const response = await adminApi.post('/routes', data);
     return response.data;
   }
 
   // Cập nhật tuyến đường (yêu cầu admin token)
   async updateRoute(id: number, data: UpdateRouteData): Promise<ApiResponse<Route>> {
-    const response = await adminApi.put<ApiResponse<Route>>(`/routes/${id}`, data);
+    const response = await adminApi.put(`/routes/${id}`, data);
     return response.data;
   }
 
   // Xóa tuyến đường (yêu cầu admin token)
   async deleteRoute(id: number): Promise<ApiResponse<{ message: string }>> {
-    const response = await adminApi.delete<ApiResponse<{ message: string }>>(`/routes/${id}`);
+    const response = await adminApi.delete(`/routes/${id}`);
+    return response.data;
+  }
+
+  // Bật/tắt trạng thái tuyến đường (yêu cầu admin token)
+  async toggleRouteStatus(id: number): Promise<ApiResponse<Route>> {
+    const response = await adminApi.patch(`/routes/${id}/toggle-status`);
     return response.data;
   }
 
   // Lấy tuyến đường theo tỉnh
   async getRoutesByProvince(provinceId: number): Promise<ApiResponse<Route[]>> {
-    const response = await api.get<ApiResponse<Route[]>>(`/routes/province/${provinceId}`);
+    const response = await api.get(`/routes/province/${provinceId}`);
     return response.data;
   }
 
@@ -174,14 +189,16 @@ class RouteService {
   async searchTrips(
     departureProvinceId: number,
     arrivalProvinceId: number,
-    departureDate: string
+    departureDate: string // VN date input: "2025-01-15"
   ): Promise<SearchTripsResponse> {
     try {
+      // Send VN date directly to BE
+      // BE will handle VN date → UTC range conversion internally
       const response = await api.get('/routes/search', {
         params: {
           departureProvinceId,
           arrivalProvinceId,
-          departureDate
+          departureDate // VN date: "2025-01-15"
         }
       });
       return response.data.data;

@@ -13,6 +13,7 @@ import { toast } from 'sonner';
 import scheduleService, { ScheduleFilters, Schedule } from '@/services/scheduleService';
 import CreateScheduleModal from '@/components/CreateScheduleModal';
 import UpdateScheduleModal from '@/components/UpdateScheduleModal';
+import { formatUTCToVNTime, getCurrentVNDate } from '@/lib/dateUtils';
 
 const AdminSchedulesPage: React.FC = () => {
   const [schedules, setSchedules] = useState<Schedule[]>([]);
@@ -100,8 +101,9 @@ const AdminSchedulesPage: React.FC = () => {
     }).format(price);
   };
 
-  const formatDateTime = (dateTime: string) => {
-    return format(new Date(dateTime), 'HH:mm - dd/MM/yyyy', { locale: vi });
+  const formatDateTime = (utcDateTime: string) => {
+    // Convert UTC datetime from API to VN time for display
+    return formatUTCToVNTime(utcDateTime, 'HH:mm - dd/MM/yyyy');
   };
 
   const handleEditSchedule = (schedule: Schedule) => {
