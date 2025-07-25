@@ -18,6 +18,10 @@ import { bookingService } from '@/services/bookingService';
 import { BookingEntity, BookingStats, BookingFilters, UpdateBookingStatusData, CancelBookingData } from '@/services/types';
 import { cn } from '@/lib/utils';
 import { formatUTCToVNTime } from '@/lib/dateUtils';
+import { provinceService } from '@/services/provinceService';
+import { routeService } from '@/services/routeService';
+import type { Route as RouteType } from '@/services/routeService';
+import { DateRange } from 'react-day-picker';
 
 
 const AdminBookingsPage: React.FC = () => {
@@ -30,7 +34,8 @@ const AdminBookingsPage: React.FC = () => {
     page: 1,
     limit: 10,
     sortBy: 'bookedAt',
-    sortOrder: 'desc'
+    sortOrder: 'desc',
+    routeId: undefined // luôn là string hoặc undefined
   });
   const [totalPages, setTotalPages] = useState(0);
   const [total, setTotal] = useState(0);
@@ -40,6 +45,8 @@ const AdminBookingsPage: React.FC = () => {
   const [statusData, setStatusData] = useState<UpdateBookingStatusData>({ status: 'paid' });
   const [cancelData, setCancelData] = useState<CancelBookingData>({ reason: '' });
   const [actionLoading, setActionLoading] = useState(false);
+  const [routes, setRoutes] = useState<{ id: number; name: string }[]>([]);
+  const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
 
   const { toast } = useToast();
 
@@ -84,7 +91,24 @@ const AdminBookingsPage: React.FC = () => {
   useEffect(() => {
     // Load initial stats without filters
     loadStats();
+    // Load all routes for filter
+    routeService.getAllRoutes().then((res) => {
+      const data = res.data;
+      setRoutes(data.map((r: RouteType) => ({ id: r.id, name: `${r.departureProvince?.name || r.departureProvince} → ${r.arrivalProvince?.name || r.arrivalProvince}` })));
+    });
   }, []);
+
+  // Khi dateRange thay đổi, cập nhật filters
+  useEffect(() => {
+    if (!dateRange || (!dateRange.from && !dateRange.to)) {
+      setFilters((prev) => ({ ...prev, startDate: undefined, endDate: undefined, page: 1 }));
+    } else if (dateRange.from && !dateRange.to) {
+      // Chọn 1 ngày
+      setFilters((prev) => ({ ...prev, startDate: format(dateRange.from, 'yyyy-MM-dd'), endDate: format(dateRange.from, 'yyyy-MM-dd'), page: 1 }));
+    } else if (dateRange.from && dateRange.to) {
+      setFilters((prev) => ({ ...prev, startDate: format(dateRange.from, 'yyyy-MM-dd'), endDate: format(dateRange.to, 'yyyy-MM-dd'), page: 1 }));
+    }
+  }, [dateRange]);
 
   // Handle status update
   const handleStatusUpdate = async () => {
@@ -310,58 +334,47 @@ const AdminBookingsPage: React.FC = () => {
               </Select>
             </div>
             <div className="space-y-2">
-              <Label>Từ ngày</Label>
-              <Popover>
-                <PopoverTrigger asChild>
-                  <Button
-                    variant="outline"
-                    className={cn(
-                      "w-full justify-start text-left font-normal",
-                      !filters.startDate && "text-muted-foreground"
-                    )}
-                  >
-                    <CalendarIcon className="mr-2 h-4 w-4" />
-                    {filters.startDate ? format(new Date(filters.startDate), 'dd/MM/yyyy') : 'Chọn ngày'}
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-auto p-0">
-                  <Calendar
-                    mode="single"
-                    selected={filters.startDate ? new Date(filters.startDate) : undefined}
-                    onSelect={(date) => setFilters({ 
-                      ...filters, 
-                      startDate: date ? format(date, 'yyyy-MM-dd') : undefined,
-                      page: 1 
-                    })}
-                    initialFocus
-                  />
-                </PopoverContent>
-              </Popover>
+              <Label>Tuyến đường</Label>
+              <Select
+                value={filters.routeId || 'all'}
+                onValueChange={(value) => setFilters({ ...filters, routeId: value === 'all' ? undefined : value, page: 1 })}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Tất cả tuyến đường" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Tất cả tuyến đường</SelectItem>
+                  {routes.map((route) => (
+                    <SelectItem key={route.id} value={route.id.toString()}>{route.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
+            {/* Thay thế 2 trường ngày thành 1 trường chọn range */}
             <div className="space-y-2">
-              <Label>Đến ngày</Label>
+              <Label>Ngày đặt vé</Label>
               <Popover>
                 <PopoverTrigger asChild>
                   <Button
                     variant="outline"
                     className={cn(
                       "w-full justify-start text-left font-normal",
-                      !filters.endDate && "text-muted-foreground"
+                      !dateRange?.from && "text-muted-foreground"
                     )}
                   >
                     <CalendarIcon className="mr-2 h-4 w-4" />
-                    {filters.endDate ? format(new Date(filters.endDate), 'dd/MM/yyyy') : 'Chọn ngày'}
+                    {dateRange?.from && dateRange?.to
+                      ? `${format(dateRange.from, 'dd/MM/yyyy')} - ${format(dateRange.to, 'dd/MM/yyyy')}`
+                      : dateRange?.from
+                      ? format(dateRange.from, 'dd/MM/yyyy')
+                      : 'Chọn ngày hoặc khoảng ngày'}
                   </Button>
                 </PopoverTrigger>
                 <PopoverContent className="w-auto p-0">
                   <Calendar
-                    mode="single"
-                    selected={filters.endDate ? new Date(filters.endDate) : undefined}
-                    onSelect={(date) => setFilters({ 
-                      ...filters, 
-                      endDate: date ? format(date, 'yyyy-MM-dd') : undefined,
-                      page: 1 
-                    })}
+                    mode="range"
+                    selected={dateRange}
+                    onSelect={setDateRange}
                     initialFocus
                   />
                 </PopoverContent>

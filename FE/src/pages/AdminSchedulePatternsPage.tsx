@@ -31,27 +31,6 @@ const AdminSchedulePatternsPage: React.FC = () => {
     setViewMode('detail');
   };
 
-  const handleDeletePattern = async (patternId: number) => {
-    try {
-      await schedulePatternService.delete(patternId);
-      
-      toast({
-        title: "Thành công",
-        description: "Xóa mẫu lịch trình thành công!",
-      });
-      
-      // Return to list view
-      setViewMode('list');
-    } catch (error) {
-      console.error('Error deleting pattern:', error);
-      toast({
-        title: "Lỗi",
-        description: error instanceof Error ? error.message : "Có lỗi xảy ra khi xóa mẫu lịch trình!",
-        variant: "destructive",
-      });
-    }
-  };
-
   const handleSavePattern = async (patternData: SchedulePatternInput) => {
     try {
       if (selectedPattern) {
@@ -134,7 +113,7 @@ const AdminSchedulePatternsPage: React.FC = () => {
           <PatternList
             onCreatePattern={handleCreatePattern}
             onEditPattern={handleEditPattern}
-            onDeletePattern={handleDeletePattern}
+            // onDeletePattern removed
           />
         )}
 
@@ -150,7 +129,7 @@ const AdminSchedulePatternsPage: React.FC = () => {
           <PatternDetail
             pattern={selectedPattern}
             onEdit={() => setViewMode('edit')}
-            onDelete={() => handleDeletePattern(selectedPattern.id)}
+            // onDelete removed
             onClose={handleCancel}
           />
         )}

@@ -159,6 +159,10 @@ const getAllStatistics = async (filters = {}) => {
   }
 };
 
+const getScheduleRevenueStats = async (filters) => {
+  return await StatisticsModel.getScheduleRevenueStats(filters);
+};
+
 module.exports = {
   getDashboardStatistics,
   getStatisticsByPeriod,
@@ -166,5 +170,6 @@ module.exports = {
   getMonthlyStatistics,
   getWeeklyStatistics,
   getPaymentMethodStatistics,
-  getAllStatistics
+  getAllStatistics,
+  getScheduleRevenueStats
 }; 

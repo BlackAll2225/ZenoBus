@@ -22,7 +22,7 @@ import { Separator } from '@/components/ui/separator';
 interface PatternDetailProps {
   pattern: SchedulePattern;
   onEdit: () => void;
-  onDelete: () => void;
+  onDelete?: () => void;
   onClose: () => void;
 }
 
@@ -88,10 +88,12 @@ const PatternDetail: React.FC<PatternDetailProps> = ({
             <Edit className="h-4 w-4 mr-2" />
             Chỉnh sửa
           </Button>
-          <Button variant="outline" onClick={onDelete} className="text-red-600 hover:text-red-700">
-            <Trash2 className="h-4 w-4 mr-2" />
-            Xóa
-          </Button>
+          {onDelete && (
+            <Button variant="outline" onClick={onDelete} className="text-red-600 hover:text-red-700">
+              <Trash2 className="h-4 w-4 mr-2" />
+              Xóa
+            </Button>
+          )}
           <Button variant="outline" onClick={onClose}>
             Đóng
           </Button>

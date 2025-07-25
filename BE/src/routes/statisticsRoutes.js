@@ -252,6 +252,60 @@ router.get('/payment-methods', statisticsController.getPaymentMethodStatistics);
 
 /**
  * @swagger
+ * /api/statistics/schedules:
+ *   get:
+ *     summary: Lấy thống kê doanh thu theo chuyến đi
+ *     description: Lấy danh sách chuyến đi (schedule) kèm số vé đã bán và doanh thu từng chuyến, có filter routeId, startDate, endDate, status, phân trang
+ *     tags: [Statistics]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: routeId
+ *         schema:
+ *           type: integer
+ *         description: Lọc theo tuyến đường
+ *       - in: query
+ *         name: startDate
+ *         schema:
+ *           type: string
+ *           format: date-time
+ *         description: Lọc từ ngày (UTC)
+ *       - in: query
+ *         name: endDate
+ *         schema:
+ *           type: string
+ *           format: date-time
+ *         description: Lọc đến ngày (UTC)
+ *       - in: query
+ *         name: status
+ *         schema:
+ *           type: string
+ *         description: Lọc theo trạng thái chuyến đi
+ *       - in: query
+ *         name: page
+ *         schema:
+ *           type: integer
+ *           default: 1
+ *         description: Trang hiện tại
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *           default: 20
+ *         description: Số lượng item mỗi trang
+ *     responses:
+ *       200:
+ *         description: Thành công
+ *       401:
+ *         description: Không có quyền truy cập
+ *       500:
+ *         description: Lỗi server
+ */
+router.get('/schedules', statisticsController.getScheduleRevenueStats);
+
+/**
+ * @swagger
  * /api/statistics/all:
  *   get:
  *     summary: Lấy tất cả thống kê

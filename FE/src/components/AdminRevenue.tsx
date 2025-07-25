@@ -8,7 +8,7 @@ import {
   Ticket, 
   Bus, 
   Users,
-  Calendar,
+  Calendar as CalendarIcon,
   Filter,
   Loader2
 } from 'lucide-react';
@@ -34,9 +34,15 @@ import {
   LineChart,
   Line
 } from 'recharts';
-import { statisticsService, DashboardStats, TopRoute, MonthlyStats } from '@/services/statisticsService';
+import { statisticsService, DashboardStats, TopRoute, MonthlyStats, ScheduleRevenueStats, ScheduleRevenueStatsResponse } from '@/services/statisticsService';
+import { routeService } from '@/services/routeService';
 import { useToast } from '@/hooks/use-toast';
-
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { format } from 'date-fns';
+import { vi } from 'date-fns/locale';
+import type { DateRange } from 'react-day-picker';
+import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover';
+import { Calendar } from '@/components/ui/calendar';
 
 
 export const AdminRevenue = () => {
@@ -46,6 +52,13 @@ export const AdminRevenue = () => {
   const [dashboardStats, setDashboardStats] = useState<DashboardStats | null>(null);
   const [topRoutes, setTopRoutes] = useState<TopRoute[]>([]);
   const [monthlyStats, setMonthlyStats] = useState<MonthlyStats | null>(null);
+
+  // State cho bảng doanh thu theo chuyến đi
+  const [scheduleStats, setScheduleStats] = useState<ScheduleRevenueStatsResponse | null>(null);
+  const [scheduleLoading, setScheduleLoading] = useState(false);
+  const [scheduleFilters, setScheduleFilters] = useState<{ routeId?: string; page?: number; limit?: number; startDate?: string; endDate?: string }>({ page: 1, limit: 10 });
+  const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
+  const [routes, setRoutes] = useState<{ id: number; name: string }[]>([]);
 
   
   const { toast } = useToast();
@@ -88,6 +101,44 @@ export const AdminRevenue = () => {
     loadStatistics();
   }, []);
 
+  // Load routes cho filter
+  useEffect(() => {
+    routeService.getAllRoutes().then((res) => {
+      const data = res.data;
+      setRoutes(data.map((r) => ({ id: r.id, name: `${r.departureProvince?.name || r.departureProvince} → ${r.arrivalProvince?.name || r.arrivalProvince}` })));
+    });
+  }, []);
+
+  // Load schedule revenue stats
+  useEffect(() => {
+    const fetchStats = async () => {
+      setScheduleLoading(true);
+      try {
+        const filters: any = { page: scheduleFilters.page, limit: scheduleFilters.limit };
+        if (scheduleFilters.routeId) filters.routeId = scheduleFilters.routeId;
+        if (scheduleFilters.startDate) filters.startDate = scheduleFilters.startDate;
+        if (scheduleFilters.endDate) filters.endDate = scheduleFilters.endDate;
+        const data = await statisticsService.getScheduleRevenueStats(filters);
+        setScheduleStats(data);
+      } catch (e) {
+        setScheduleStats(null);
+      } finally {
+        setScheduleLoading(false);
+      }
+    };
+    fetchStats();
+  }, [scheduleFilters]);
+
+  // Khi dateRange thay đổi, cập nhật filter ngày cho API
+  useEffect(() => {
+    if (!dateRange || (!dateRange.from && !dateRange.to)) {
+      setScheduleFilters((prev) => ({ ...prev, startDate: undefined, endDate: undefined, page: 1 }));
+    } else if (dateRange.from && !dateRange.to) {
+      setScheduleFilters((prev) => ({ ...prev, startDate: format(dateRange.from, 'yyyy-MM-dd'), endDate: format(dateRange.from, 'yyyy-MM-dd'), page: 1 }));
+    } else if (dateRange.from && dateRange.to) {
+      setScheduleFilters((prev) => ({ ...prev, startDate: format(dateRange.from, 'yyyy-MM-dd'), endDate: format(dateRange.to, 'yyyy-MM-dd'), page: 1 }));
+    }
+  }, [dateRange]);
 
 
   const formatCurrency = (amount: number) => {
@@ -294,9 +345,7 @@ export const AdminRevenue = () => {
               <Bus className="h-5 w-5 text-green-500 mr-2" />
               Tuyến Đường Top Doanh Thu
             </CardTitle>
-            <Button variant="outline" className="border-green-500 text-green-600 hover:bg-green-50">
-              Xem Tất Cả Tuyến Đường
-            </Button>
+          
           </div>
         </CardHeader>
         <CardContent>
@@ -330,6 +379,125 @@ export const AdminRevenue = () => {
                 ))}
               </TableBody>
             </Table>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Bảng doanh thu theo chuyến đi */}
+      <Card className="shadow-lg border-0">
+        <CardHeader className="pb-4">
+          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-2">
+            <CardTitle className="text-xl font-bold text-gray-800 flex items-center">
+              <Bus className="h-5 w-5 text-green-500 mr-2" />
+              Doanh Thu Theo Chuyến Đi
+            </CardTitle>
+            <div className="flex gap-2 flex-wrap">
+              <Select
+                value={scheduleFilters.routeId || 'all'}
+                onValueChange={(value) => setScheduleFilters((prev) => ({ ...prev, routeId: value === 'all' ? undefined : value, page: 1 }))}
+              >
+                <SelectTrigger className="w-[180px]">
+                  <SelectValue placeholder="Tất cả tuyến đường" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Tất cả tuyến đường</SelectItem>
+                  {routes.map((route) => (
+                    <SelectItem key={route.id} value={route.id.toString()}>{route.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button variant="outline" className="w-[220px] justify-start text-left font-normal">
+                    <CalendarIcon className="mr-2 h-4 w-4" />
+                    {dateRange?.from && dateRange?.to
+                      ? `${format(dateRange.from, 'dd/MM/yyyy')} - ${format(dateRange.to, 'dd/MM/yyyy')}`
+                      : dateRange?.from
+                      ? format(dateRange.from, 'dd/MM/yyyy')
+                      : 'Chọn ngày'}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0">
+                  <Calendar
+                    mode="range"
+                    selected={dateRange}
+                    onSelect={setDateRange}
+                    initialFocus
+                  />
+                </PopoverContent>
+              </Popover>
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent>
+          <div className="overflow-x-auto">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="font-semibold">Mã Chuyến</TableHead>
+                  <TableHead className="font-semibold">Tuyến</TableHead>
+                  <TableHead className="font-semibold">Thời Gian</TableHead>
+                  <TableHead className="font-semibold">Trạng Thái</TableHead>
+                  <TableHead className="font-semibold">Giá Vé</TableHead>
+                  <TableHead className="font-semibold">Đã Bán</TableHead>
+                  <TableHead className="font-semibold">Doanh Thu</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {scheduleLoading ? (
+                  <TableRow>
+                    <TableCell colSpan={6} className="text-center py-8">
+                      <Loader2 className="h-6 w-6 animate-spin text-green-500 mx-auto" />
+                      Đang tải dữ liệu...
+                    </TableCell>
+                  </TableRow>
+                ) : scheduleStats && scheduleStats.schedules.length > 0 ? (
+                  scheduleStats.schedules.map((sch) => (
+                    <TableRow key={sch.scheduleId} className="hover:bg-gray-50">
+                      <TableCell className="font-semibold">#{sch.scheduleId}</TableCell>
+                      <TableCell>{sch.departureProvince} → {sch.arrivalProvince}</TableCell>
+                      <TableCell>{format(new Date(sch.departure_time), 'dd/MM/yyyy HH:mm')}</TableCell>
+                      <TableCell>
+                        <Badge variant={sch.status === 'completed' ? 'default' : sch.status === 'cancelled' ? 'destructive' : 'secondary'}>
+                          {sch.status}
+                        </Badge>
+                      </TableCell>
+                      <TableCell>{formatCurrency(sch.price)}</TableCell>
+                      <TableCell>{sch.bookingCount}/{sch.totalSeats}</TableCell>
+                      <TableCell className="font-semibold text-green-600">{formatCurrency(sch.revenue)}</TableCell>
+                    </TableRow>
+                  ))
+                ) : (
+                  <TableRow>
+                    <TableCell colSpan={6} className="text-center py-8 text-gray-500">Không có dữ liệu</TableCell>
+                  </TableRow>
+                )}
+              </TableBody>
+            </Table>
+            {/* Pagination */}
+            {scheduleStats && scheduleStats.totalPages > 1 && (
+              <div className="flex justify-center mt-4">
+                <div className="flex gap-2">
+                  <Button
+                    variant="outline"
+                    disabled={scheduleFilters.page === 1}
+                    onClick={() => setScheduleFilters((prev) => ({ ...prev, page: (prev.page || 1) - 1 }))}
+                  >
+                    Trước
+                  </Button>
+                  <span className="flex items-center px-4">
+                    Trang {scheduleFilters.page} / {scheduleStats.totalPages}
+                  </span>
+                  <Button
+                    variant="outline"
+                    disabled={scheduleFilters.page === scheduleStats.totalPages}
+                    onClick={() => setScheduleFilters((prev) => ({ ...prev, page: (prev.page || 1) + 1 }))}
+                  >
+                    Sau
+                  </Button>
+                </div>
+              </div>
+            )}
           </div>
         </CardContent>
       </Card>

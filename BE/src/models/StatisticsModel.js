@@ -182,11 +182,92 @@ const getPaymentMethodStats = async () => {
   }
 };
 
+// Thống kê doanh thu theo chuyến đi (schedule)
+const getScheduleRevenueStats = async ({ routeId, startDate, endDate, status, page = 1, limit = 20 }) => {
+  const pool = await poolPromise;
+  let where = [];
+  let params = {};
+  if (routeId) {
+    where.push('s.route_id = @routeId');
+    params.routeId = routeId;
+  }
+  if (startDate) {
+    where.push('s.departure_time >= @startDate');
+    params.startDate = startDate;
+  }
+  if (endDate) {
+    where.push('s.departure_time <= @endDate');
+    params.endDate = endDate;
+  }
+  if (status) {
+    where.push('s.status = @status');
+    params.status = status;
+  }
+  const whereClause = where.length ? 'WHERE ' + where.join(' AND ') : '';
+  const offset = (page - 1) * limit;
+
+  // Query tổng số chuyến
+  const countQuery = `
+    SELECT COUNT(*) as total
+    FROM schedules s
+    ${whereClause}
+  `;
+  const countResult = await pool.request()
+    .input('routeId', sql.Int, params.routeId)
+    .input('startDate', sql.DateTime, params.startDate)
+    .input('endDate', sql.DateTime, params.endDate)
+    .input('status', sql.VarChar, params.status)
+    .query(countQuery);
+  const total = countResult.recordset[0].total;
+
+  // Query dữ liệu
+  const dataQuery = `
+    SELECT 
+      s.id as scheduleId,
+      s.departure_time,
+      s.status,
+      s.price,
+      r.id as routeId,
+      p1.name as departureProvince,
+      p2.name as arrivalProvince,
+      bus.seat_count as totalSeats,
+      COUNT(b.id) as bookingCount,
+      (bus.seat_count - COUNT(b.id)) as emptySeats,
+      SUM(CASE WHEN b.status = 'paid' THEN b.total_price ELSE 0 END) as revenue
+    FROM schedules s
+    INNER JOIN routes r ON s.route_id = r.id
+    INNER JOIN provinces p1 ON r.departure_province_id = p1.id
+    INNER JOIN provinces p2 ON r.arrival_province_id = p2.id
+    INNER JOIN buses bus ON s.bus_id = bus.id
+    LEFT JOIN bookings b ON s.id = b.schedule_id
+    ${whereClause}
+    GROUP BY s.id, s.departure_time, s.status, s.price, r.id, p1.name, p2.name, bus.seat_count
+    ORDER BY s.departure_time DESC
+    OFFSET @offset ROWS FETCH NEXT @limit ROWS ONLY
+  `;
+  const dataResult = await pool.request()
+    .input('routeId', sql.Int, params.routeId)
+    .input('startDate', sql.DateTime, params.startDate)
+    .input('endDate', sql.DateTime, params.endDate)
+    .input('status', sql.VarChar, params.status)
+    .input('offset', sql.Int, offset)
+    .input('limit', sql.Int, limit)
+    .query(dataQuery);
+  return {
+    total,
+    page,
+    limit,
+    totalPages: Math.ceil(total / limit),
+    schedules: dataResult.recordset
+  };
+};
+
 module.exports = {
   getDashboardStats,
   getStatsByPeriod,
   getTopRoutes,
   getMonthlyStats,
   getWeeklyStats,
-  getPaymentMethodStats
+  getPaymentMethodStats,
+  getScheduleRevenueStats
 }; 

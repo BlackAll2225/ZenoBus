@@ -9,6 +9,7 @@ export interface Customer {
   updatedAt: string;
   status: 'active' | 'inactive';
   totalBookings?: number;
+  phoneNumber: string;
 }
 
 export interface UserFilters {

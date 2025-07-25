@@ -406,7 +406,7 @@ export const AdminCustomers = () => {
                         <div className="text-gray-700">{customer.email}</div>
                       </TableCell>
                       <TableCell>
-                        <div className="text-gray-700">{customer.phone}</div>
+                        <div className="text-gray-700">{customer.phoneNumber}</div>
                       </TableCell>
                       <TableCell>
                         <div className="text-gray-700">{formatDate(customer.createdAt)}</div>

@@ -30,6 +30,7 @@ export const bookingService = {
     if (filters.limit) params.append('limit', filters.limit.toString());
     if (filters.sortBy) params.append('sortBy', filters.sortBy);
     if (filters.sortOrder) params.append('sortOrder', filters.sortOrder);
+    if (filters.routeId) params.append('routeId', String(Number(filters.routeId)));
 
     console.log('Original booking filters:', filters);
     console.log('Converted API params:', params.toString());
@@ -46,6 +47,7 @@ export const bookingService = {
     // Convert VN dates to UTC for API
     if (filters.startDate) params.append('startDate', convertVNDateToUTCString(filters.startDate));
     if (filters.endDate) params.append('endDate', convertVNDateToUTCString(filters.endDate));
+    if (filters.routeId) params.append('routeId', String(Number(filters.routeId)));
 
     console.log('Original booking stats filters:', filters);
     console.log('Converted API params:', params.toString());

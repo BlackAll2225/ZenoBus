@@ -152,12 +152,16 @@ export interface BookingUser {
   fullName: string;
   email: string;
   phoneNumber: string;
+  name: string;
+  phone: string;
+  schedule:BookingSchedule
 }
 
 export interface BookingSchedule {
   id: number;
   departureTime: string;
   price: number;
+  seatPrice: number
 }
 
 export interface BookingBus {
@@ -215,14 +219,15 @@ export interface BookingStats {
 }
 
 export interface BookingFilters {
+  page?: number;
+  limit?: number;
+  sortBy?: string;
+  sortOrder?: string;
   status?: 'pending' | 'paid' | 'cancelled' | 'completed';
   search?: string;
   startDate?: string;
   endDate?: string;
-  page?: number;
-  limit?: number;
-  sortBy?: 'id' | 'totalPrice' | 'status' | 'bookedAt' | 'userName' | 'departureTime' | 'departureProvince' | 'arrivalProvince';
-  sortOrder?: 'asc' | 'desc';
+  routeId?: number;
 }
 
 export interface UpdateBookingStatusData {

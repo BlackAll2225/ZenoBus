@@ -28,22 +28,22 @@ IF OBJECT_ID('staff_accounts', 'U') IS NOT NULL DELETE FROM staff_accounts;
 -- RESET IDENTITY COLUMNS (AN TOÀN)
 -- ========================================
 -- Chỉ reset nếu bảng tồn tại
-IF OBJECT_ID('booking_seats', 'U') IS NOT NULL DBCC CHECKIDENT ('booking_seats', RESEED, 0);
-IF OBJECT_ID('payments', 'U') IS NOT NULL DBCC CHECKIDENT ('payments', RESEED, 0);
-IF OBJECT_ID('feedbacks', 'U') IS NOT NULL DBCC CHECKIDENT ('feedbacks', RESEED, 0);
-IF OBJECT_ID('bookings', 'U') IS NOT NULL DBCC CHECKIDENT ('bookings', RESEED, 0);
-IF OBJECT_ID('seats', 'U') IS NOT NULL DBCC CHECKIDENT ('seats', RESEED, 0);
-IF OBJECT_ID('schedule_management', 'U') IS NOT NULL DBCC CHECKIDENT ('schedule_management', RESEED, 0);
-IF OBJECT_ID('schedules', 'U') IS NOT NULL DBCC CHECKIDENT ('schedules', RESEED, 0);
-IF OBJECT_ID('schedule_patterns', 'U') IS NOT NULL DBCC CHECKIDENT ('schedule_patterns', RESEED, 0);
-IF OBJECT_ID('drivers', 'U') IS NOT NULL DBCC CHECKIDENT ('drivers', RESEED, 0);
-IF OBJECT_ID('buses', 'U') IS NOT NULL DBCC CHECKIDENT ('buses', RESEED, 0);
-IF OBJECT_ID('bus_types', 'U') IS NOT NULL DBCC CHECKIDENT ('bus_types', RESEED, 0);
-IF OBJECT_ID('routes', 'U') IS NOT NULL DBCC CHECKIDENT ('routes', RESEED, 0);
-IF OBJECT_ID('stops', 'U') IS NOT NULL DBCC CHECKIDENT ('stops', RESEED, 0);
-IF OBJECT_ID('provinces', 'U') IS NOT NULL DBCC CHECKIDENT ('provinces', RESEED, 0);
-IF OBJECT_ID('users', 'U') IS NOT NULL DBCC CHECKIDENT ('users', RESEED, 0);
-IF OBJECT_ID('staff_accounts', 'U') IS NOT NULL DBCC CHECKIDENT ('staff_accounts', RESEED, 0);
+IF OBJECT_ID('booking_seats', 'U') IS NOT NULL DBCC CHECKIDENT ('booking_seats', RESEED, 1);
+IF OBJECT_ID('payments', 'U') IS NOT NULL DBCC CHECKIDENT ('payments', RESEED, 1);
+IF OBJECT_ID('feedbacks', 'U') IS NOT NULL DBCC CHECKIDENT ('feedbacks', RESEED, 1);
+IF OBJECT_ID('bookings', 'U') IS NOT NULL DBCC CHECKIDENT ('bookings', RESEED, 1);
+IF OBJECT_ID('seats', 'U') IS NOT NULL DBCC CHECKIDENT ('seats', RESEED, 1);
+IF OBJECT_ID('schedule_management', 'U') IS NOT NULL DBCC CHECKIDENT ('schedule_management', RESEED, 1);
+IF OBJECT_ID('schedules', 'U') IS NOT NULL DBCC CHECKIDENT ('schedules', RESEED, 1);
+IF OBJECT_ID('schedule_patterns', 'U') IS NOT NULL DBCC CHECKIDENT ('schedule_patterns', RESEED, 1);
+IF OBJECT_ID('drivers', 'U') IS NOT NULL DBCC CHECKIDENT ('drivers', RESEED, 1);
+IF OBJECT_ID('buses', 'U') IS NOT NULL DBCC CHECKIDENT ('buses', RESEED, 1);
+IF OBJECT_ID('bus_types', 'U') IS NOT NULL DBCC CHECKIDENT ('bus_types', RESEED, 1);
+IF OBJECT_ID('routes', 'U') IS NOT NULL DBCC CHECKIDENT ('routes', RESEED, 1);
+IF OBJECT_ID('stops', 'U') IS NOT NULL DBCC CHECKIDENT ('stops', RESEED, 1);
+IF OBJECT_ID('provinces', 'U') IS NOT NULL DBCC CHECKIDENT ('provinces', RESEED, 1);
+IF OBJECT_ID('users', 'U') IS NOT NULL DBCC CHECKIDENT ('users', RESEED, 1);
+IF OBJECT_ID('staff_accounts', 'U') IS NOT NULL DBCC CHECKIDENT ('staff_accounts', RESEED, 1);
 
 PRINT 'Data cleanup completed successfully!';
 

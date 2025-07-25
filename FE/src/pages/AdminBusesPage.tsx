@@ -10,7 +10,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Plus, Edit, Trash2, Bus, Settings } from 'lucide-react';
+import { Plus, Edit, Bus, Settings } from 'lucide-react';
 import { busService } from '@/services/busService';
 import { busTypeService } from '@/services/busTypeService';
 import { BusEntity, BusType, CreateBusData, UpdateBusData, CreateBusTypeData, UpdateBusTypeData } from '@/services/types';
@@ -460,18 +460,6 @@ const AdminBusesPage: React.FC = () => {
                           >
                             <Edit className="w-4 h-4" />
                           </Button>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => handleDeleteBus(bus.id)}
-                            disabled={deleteBusLoading === bus.id}
-                          >
-                            {deleteBusLoading === bus.id ? (
-                              <div className="w-4 h-4 border-2 border-gray-300 border-t-gray-600 rounded-full animate-spin" />
-                            ) : (
-                              <Trash2 className="w-4 h-4" />
-                            )}
-                          </Button>
                         </div>
                       </TableCell>
                     </TableRow>
@@ -566,18 +554,6 @@ const AdminBusesPage: React.FC = () => {
                             disabled={deleteBusTypeLoading === busType.id}
                           >
                             <Edit className="w-4 h-4" />
-                          </Button>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => handleDeleteBusType(busType.id)}
-                            disabled={deleteBusTypeLoading === busType.id}
-                          >
-                            {deleteBusTypeLoading === busType.id ? (
-                              <div className="w-4 h-4 border-2 border-gray-300 border-t-gray-600 rounded-full animate-spin" />
-                            ) : (
-                              <Trash2 className="w-4 h-4" />
-                            )}
                           </Button>
                         </div>
                       </TableCell>

@@ -324,7 +324,7 @@ const AdminRoutesPage: React.FC = () => {
 
   return (
     <TooltipProvider>
-      <div className="space-y-6">
+    <div className="space-y-6">
       <div className="flex justify-between items-center">
         <h1 className="text-3xl font-bold">Quản lý tuyến đường</h1>
         <div className="flex items-center space-x-4">
@@ -336,120 +336,120 @@ const AdminRoutesPage: React.FC = () => {
             />
             <Label htmlFor="show-inactive">Bao gồm các tuyến không hoạt động</Label>
           </div>
-          <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
-            <DialogTrigger asChild>
-              <Button onClick={() => resetForm()}>
-                <Plus className="w-4 h-4 mr-2" />
-                Thêm tuyến đường
-              </Button>
-            </DialogTrigger>
-            <DialogContent>
-              <DialogHeader>
-                <DialogTitle>Thêm tuyến đường mới</DialogTitle>
-              </DialogHeader>
-              <div className="space-y-4">
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <Label>Tỉnh đi</Label>
-                    <Select 
-                      value={formData.departureProvinceId.toString()} 
-                      onValueChange={(value) => {
-                        setFormData({...formData, departureProvinceId: parseInt(value)});
-                        if (formErrors.departureProvinceId) {
-                          setFormErrors({...formErrors, departureProvinceId: undefined});
-                        }
-                      }}
-                      disabled={createLoading}
-                    >
-                      <SelectTrigger className={formErrors.departureProvinceId ? "border-red-500" : ""}>
-                        <SelectValue placeholder="Chọn tỉnh đi" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {Array.isArray(provinces) && provinces.map((province) => (
-                          <SelectItem key={province.id} value={province.id.toString()}>
-                            {province.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    {formErrors.departureProvinceId && (
-                      <p className="text-sm text-red-500 mt-1">{formErrors.departureProvinceId}</p>
-                    )}
-                  </div>
-                  <div>
-                    <Label>Tỉnh đến</Label>
-                    <Select 
-                      value={formData.arrivalProvinceId.toString()} 
-                      onValueChange={(value) => {
-                        setFormData({...formData, arrivalProvinceId: parseInt(value)});
-                        if (formErrors.arrivalProvinceId) {
-                          setFormErrors({...formErrors, arrivalProvinceId: undefined});
-                        }
-                      }}
-                      disabled={createLoading}
-                    >
-                      <SelectTrigger className={formErrors.arrivalProvinceId ? "border-red-500" : ""}>
-                        <SelectValue placeholder="Chọn tỉnh đến" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {Array.isArray(provinces) && provinces.map((province) => (
-                          <SelectItem key={province.id} value={province.id.toString()}>
-                            {province.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    {formErrors.arrivalProvinceId && (
-                      <p className="text-sm text-red-500 mt-1">{formErrors.arrivalProvinceId}</p>
-                    )}
-                  </div>
+        <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
+          <DialogTrigger asChild>
+            <Button onClick={() => resetForm()}>
+              <Plus className="w-4 h-4 mr-2" />
+              Thêm tuyến đường
+            </Button>
+          </DialogTrigger>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Thêm tuyến đường mới</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label>Tỉnh đi</Label>
+                  <Select 
+                    value={formData.departureProvinceId.toString()} 
+                    onValueChange={(value) => {
+                      setFormData({...formData, departureProvinceId: parseInt(value)});
+                      if (formErrors.departureProvinceId) {
+                        setFormErrors({...formErrors, departureProvinceId: undefined});
+                      }
+                    }}
+                    disabled={createLoading}
+                  >
+                    <SelectTrigger className={formErrors.departureProvinceId ? "border-red-500" : ""}>
+                      <SelectValue placeholder="Chọn tỉnh đi" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {Array.isArray(provinces) && provinces.map((province) => (
+                        <SelectItem key={province.id} value={province.id.toString()}>
+                          {province.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  {formErrors.departureProvinceId && (
+                    <p className="text-sm text-red-500 mt-1">{formErrors.departureProvinceId}</p>
+                  )}
                 </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <Label>Khoảng cách (km)</Label>
-                    <Input
-                      type="number"
-                      placeholder="Nhập khoảng cách"
+                <div>
+                  <Label>Tỉnh đến</Label>
+                  <Select 
+                    value={formData.arrivalProvinceId.toString()} 
+                    onValueChange={(value) => {
+                      setFormData({...formData, arrivalProvinceId: parseInt(value)});
+                      if (formErrors.arrivalProvinceId) {
+                        setFormErrors({...formErrors, arrivalProvinceId: undefined});
+                      }
+                    }}
+                    disabled={createLoading}
+                  >
+                    <SelectTrigger className={formErrors.arrivalProvinceId ? "border-red-500" : ""}>
+                      <SelectValue placeholder="Chọn tỉnh đến" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {Array.isArray(provinces) && provinces.map((province) => (
+                        <SelectItem key={province.id} value={province.id.toString()}>
+                          {province.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  {formErrors.arrivalProvinceId && (
+                    <p className="text-sm text-red-500 mt-1">{formErrors.arrivalProvinceId}</p>
+                  )}
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label>Khoảng cách (km)</Label>
+                  <Input
+                    type="number"
+                    placeholder="Nhập khoảng cách"
                       value={formData.distanceKm === undefined ? '' : formData.distanceKm}
                       onChange={(e) => handleDistanceChange(e.target.value)}
-                      disabled={createLoading}
-                    />
+                    disabled={createLoading}
+                  />
                     {formErrors.distanceKm && (
                       <p className="text-sm text-red-500 mt-1">{formErrors.distanceKm}</p>
                     )}
-                  </div>
-                  <div>
-                    <Label>Thời gian dự kiến (phút)</Label>
-                    <Input
-                      type="number"
-                      placeholder="Nhập thời gian"
-                      value={formData.estimatedTime || ''}
-                      onChange={(e) => handleEstimatedTimeChange(e.target.value)}
-                      disabled={createLoading}
-                    />
-                  </div>
                 </div>
-                <div className="flex justify-end space-x-2">
-                  <Button variant="outline" onClick={() => {
-                    setIsCreateDialogOpen(false);
-                    resetForm();
-                  }} disabled={createLoading}>
-                    Hủy
-                  </Button>
-                  <Button onClick={handleCreate} disabled={createLoading}>
-                    {createLoading ? (
-                      <>
-                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                        Đang tạo...
-                      </>
-                    ) : (
-                      'Tạo'
-                    )}
-                  </Button>
+                <div>
+                  <Label>Thời gian dự kiến (phút)</Label>
+                  <Input
+                    type="number"
+                    placeholder="Nhập thời gian"
+                    value={formData.estimatedTime || ''}
+                      onChange={(e) => handleEstimatedTimeChange(e.target.value)}
+                    disabled={createLoading}
+                  />
                 </div>
               </div>
-            </DialogContent>
-          </Dialog>
+              <div className="flex justify-end space-x-2">
+                <Button variant="outline" onClick={() => {
+                  setIsCreateDialogOpen(false);
+                  resetForm();
+                }} disabled={createLoading}>
+                  Hủy
+                </Button>
+                <Button onClick={handleCreate} disabled={createLoading}>
+                  {createLoading ? (
+                    <>
+                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                      Đang tạo...
+                    </>
+                  ) : (
+                    'Tạo'
+                  )}
+                </Button>
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
         </div>
       </div>
 
@@ -642,7 +642,7 @@ const AdminRoutesPage: React.FC = () => {
           </div>
         </DialogContent>
       </Dialog>
-      </div>
+    </div>
     </TooltipProvider>
   );
 };

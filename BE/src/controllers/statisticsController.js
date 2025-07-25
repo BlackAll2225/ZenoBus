@@ -435,6 +435,24 @@ const getAllStatistics = async (req, res) => {
   }
 };
 
+const getScheduleRevenueStats = async (req, res) => {
+  try {
+    const { routeId, startDate, endDate, status, page = 1, limit = 20 } = req.query;
+    const result = await statisticsService.getScheduleRevenueStats({
+      routeId: routeId ? Number(routeId) : undefined,
+      startDate,
+      endDate,
+      status,
+      page: Number(page),
+      limit: Number(limit)
+    });
+    return res.json({ success: true, message: 'Lấy thống kê doanh thu theo chuyến đi thành công', data: result });
+  } catch (error) {
+    console.error('Error getScheduleRevenueStats:', error);
+    return res.status(500).json({ success: false, message: error.message });
+  }
+};
+
 module.exports = {
   getDashboardStatistics,
   getStatisticsByPeriod,
@@ -442,5 +460,6 @@ module.exports = {
   getMonthlyStatistics,
   getWeeklyStatistics,
   getPaymentMethodStatistics,
-  getAllStatistics
+  getAllStatistics,
+  getScheduleRevenueStats
 }; 

@@ -66,7 +66,7 @@ const ResponseHandler = require('../utils/responseHandler');
  */
 const getAllBookings = async (req, res) => {
   try {
-    const { page = 1, limit = 10, status, search, startDate, endDate, sortBy = 'bookedAt', sortOrder = 'desc' } = req.query;
+    const { page = 1, limit = 10, status, search, startDate, endDate, sortBy = 'bookedAt', sortOrder = 'desc', routeId } = req.query;
     const offset = (page - 1) * limit;
     
     // Validate sortBy and sortOrder
@@ -113,6 +113,11 @@ const getAllBookings = async (req, res) => {
       whereConditions.push('b.booked_at <= :endDate');
       params.endDate = endDate + ' 23:59:59';
     }
+
+    if (routeId) {
+      whereConditions.push('s.route_id = :routeId');
+      params.routeId = routeId;
+    }
     
     const whereClause = whereConditions.length > 0 ? 'WHERE ' + whereConditions.join(' AND ') : '';
     
@@ -121,6 +126,7 @@ const getAllBookings = async (req, res) => {
       SELECT COUNT(*) as total
       FROM bookings b
       INNER JOIN users u ON b.user_id = u.id
+      INNER JOIN schedules s ON b.schedule_id = s.id
       ${whereClause}
     `;
     
@@ -246,7 +252,7 @@ const getAllBookings = async (req, res) => {
  */
 const getBookingStats = async (req, res) => {
   try {
-    const { status, search, startDate, endDate } = req.query;
+    const { status, search, startDate, endDate, routeId } = req.query;
     
     // Xây dựng điều kiện WHERE
     let whereConditions = [];
@@ -271,6 +277,11 @@ const getBookingStats = async (req, res) => {
       whereConditions.push('b.booked_at <= :endDate');
       params.endDate = endDate + ' 23:59:59';
     }
+
+    if (routeId) {
+      whereConditions.push('s.route_id = :routeId');
+      params.routeId = routeId;
+    }
     
     const whereClause = whereConditions.length > 0 ? 'WHERE ' + whereConditions.join(' AND ') : '';
     
@@ -284,6 +295,7 @@ const getBookingStats = async (req, res) => {
         SUM(CASE WHEN b.status = 'paid' THEN b.total_price ELSE 0 END) as totalRevenue
       FROM bookings b
       INNER JOIN users u ON b.user_id = u.id
+      INNER JOIN schedules s ON b.schedule_id = s.id
       ${whereClause}
     `;
     

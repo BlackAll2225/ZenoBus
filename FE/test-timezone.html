@@ -62,7 +62,7 @@
 <body>
     <h1>🕐 Frontend Timezone Test - UTC+0 Backend</h1>
     <p><strong>Mục tiêu:</strong> FE hiển thị UTC+7 cho user, nhưng gửi UTC cho API</p>
-
+    
     <div class="test-section">
         <h2>1. 📊 Current State Check</h2>
         <div class="test-result">
@@ -273,7 +273,7 @@
         function simulateFilterSubmit() {
             const vnDateInput = document.getElementById('filterDateInput').value;
             const utcDateForAPI = convertVNDateToUTCString(vnDateInput);
-            
+
             document.getElementById('filterSubmitResult').innerHTML = `
                 <div><strong>🎯 User Filter:</strong> ${vnDateInput} (VN date)</div>
                 <div><strong>📤 API Filter:</strong> ${utcDateForAPI} (UTC date)</div>

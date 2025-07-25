@@ -81,6 +81,28 @@ export interface AllStatistics {
   paymentMethods: PaymentMethodStats[];
 }
 
+export interface ScheduleRevenueStats {
+  scheduleId: number;
+  departure_time: string;
+  status: string;
+  price: number;
+  routeId: number;
+  departureProvince: string;
+  arrivalProvince: string;
+  totalSeats: number;
+  bookingCount: number;
+  emptySeats: number;
+  revenue: number;
+}
+
+export interface ScheduleRevenueStatsResponse {
+  total: number;
+  page: number;
+  limit: number;
+  totalPages: number;
+  schedules: ScheduleRevenueStats[];
+}
+
 // API calls
 export const statisticsService = {
   // Lấy thống kê dashboard
@@ -122,6 +144,19 @@ export const statisticsService = {
   // Lấy thống kê payment methods
   getPaymentMethodStats: async (): Promise<PaymentMethodStats[]> => {
     const response = await api.get('/statistics/payment-methods');
+    return response.data.data;
+  },
+
+  // Lấy thống kê doanh thu theo chuyến đi
+  getScheduleRevenueStats: async (filters: {
+    routeId?: number | string;
+    startDate?: string;
+    endDate?: string;
+    status?: string;
+    page?: number;
+    limit?: number;
+  }): Promise<ScheduleRevenueStatsResponse> => {
+    const response = await api.get('/statistics/schedules', { params: filters });
     return response.data.data;
   },
 

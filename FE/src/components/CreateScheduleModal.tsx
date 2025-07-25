@@ -178,9 +178,10 @@ const CreateScheduleModal: React.FC<CreateScheduleModalProps> = ({ onSuccess }) 
       setOpen(false);
       resetForms();
       onSuccess();
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error creating schedule:', error);
-      toast.error('Có lỗi xảy ra khi tạo lịch trình');
+      const msg = error?.response?.data?.message || 'Có lỗi xảy ra khi tạo lịch trình';
+      toast.error(msg);
     } finally {
       setLoading(false);
     }
@@ -249,9 +250,10 @@ const CreateScheduleModal: React.FC<CreateScheduleModalProps> = ({ onSuccess }) 
       setOpen(false);
       resetForms();
       onSuccess();
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error creating schedules:', error);
-      toast.error('Có lỗi xảy ra khi tạo lịch trình');
+      const msg = error?.response?.data?.message || 'Có lỗi xảy ra khi tạo lịch trình';
+      toast.error(msg);
     } finally {
       setLoading(false);
     }

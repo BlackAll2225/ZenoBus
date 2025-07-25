@@ -55,7 +55,7 @@ import {
 interface PatternListProps {
   onCreatePattern: () => void;
   onEditPattern: (pattern: SchedulePattern) => void;
-  onDeletePattern: (patternId: number) => void;
+  onDeletePattern?: (patternId: number) => void;
 }
 
 const PatternList: React.FC<PatternListProps> = ({
@@ -139,7 +139,7 @@ const PatternList: React.FC<PatternListProps> = ({
         // Reload patterns after successful delete
         await loadPatterns();
         // Also call parent callback if provided
-        onDeletePattern(deleteDialog.pattern.id);
+        if (onDeletePattern) onDeletePattern(deleteDialog.pattern.id);
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Có lỗi xảy ra khi xóa mẫu lịch trình');
         setDeleteDialog({ open: false, pattern: null });
@@ -318,26 +318,15 @@ const PatternList: React.FC<PatternListProps> = ({
                       </Badge>
                     </TableCell>
                     <TableCell>
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" className="h-8 w-8 p-0">
-                            <MoreVertical className="h-4 w-4" />
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          <DropdownMenuItem onClick={() => onEditPattern(pattern)}>
-                            <Edit className="h-4 w-4 mr-2" />
-                            Chỉnh sửa
-                          </DropdownMenuItem>
-                          <DropdownMenuItem 
-                            onClick={() => setDeleteDialog({ open: true, pattern })}
-                            className="text-red-600"
-                          >
-                            <Trash2 className="h-4 w-4 mr-2" />
-                            Xóa
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
+                      <div className="flex items-center space-x-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => onEditPattern(pattern)}
+                        >
+                          <Edit className="h-4 w-4" />
+                        </Button>
+                      </div>
                     </TableCell>
                   </TableRow>
                 ))}
