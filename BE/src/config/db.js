@@ -2,8 +2,8 @@ const sql = require("mssql");
 
 const config = {
   user: "sa",
-  password: "YourPassword123",
-  server: "localhost",
+  password: "StrongPa$$123",
+  server: "14.225.255.72",
   database: "BusTicketSystem2",
   options: {
     trustServerCertificate: true,

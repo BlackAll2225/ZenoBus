@@ -2,7 +2,7 @@ const { Sequelize } = require("sequelize");
 require("dotenv").config();
 
 const sequelize = new Sequelize("BusTicketSystem2", "sa", "YourPassword123", {
-  host: "localhost",
+  host: "14.225.255.72",
   dialect: "mssql",
   dialectOptions: {
     options: {
